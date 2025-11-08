@@ -45,11 +45,63 @@
     .help{font-size:12px;color:#64748b;margin-top:6px}
     .hidden{display:none}
   </style>
-  <!-- Plaid Link SDK -->
+  <style>
+  /* Welcome / landing styling */
+  #welcome{min-height:100vh;display:flex;flex-direction:column;gap:20px;background:linear-gradient(180deg,#f8fafc, #ffffff 40%, #f8fafc);}
+  .hero{padding:48px 16px 8px;text-align:center}
+  .hero h1{font-size:32px;margin:0}
+  .hero p.sub{color:#475569;margin:8px 0 0}
+  .welcome-wrap{max-width:1000px;margin:0 auto;padding:0 16px 32px;display:grid;gap:16px;grid-template-columns:1fr}
+  @media(min-width:960px){.welcome-wrap{grid-template-columns:1.2fr .8fr}}
+  .welcome-card{border-radius:16px}
+  .welcome-card .pad{padding:16px}
+  .feature{background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;padding:12px}
+  .feature h3{margin:0 0 6px;font-size:15px}
+  .hero .logo{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:14px;background:#0ea5e9;color:#fff;margin-bottom:12px;font-weight:800}
+</style>
+<!-- Plaid Link SDK -->
   <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 </head>
 <body>
-  <header>
+
+<section id="welcome" class="welcome">
+  <div class="hero">
+    <div class="logo">BB</div>
+    <h1>Bills & Budget</h1>
+    <p class="sub">One place for household & business bills — with profiles, trends, and smart reconciliation.</p>
+  </div>
+  <div class="welcome-wrap">
+    <div class="card welcome-card">
+      <h2 style="padding:12px 14px;margin:0;border-bottom:1px solid #e5e7eb">Sign in</h2>
+      <div class="pad">
+        <div class="row">
+          <div>
+            <label>Name</label>
+            <input id="wName" placeholder="e.g., Ben" />
+          </div>
+          <div>
+            <label>Password</label>
+            <input id="wPass" type="password" placeholder="••••••••" />
+          </div>
+        </div>
+        <div class="toolbar" style="margin-top:10px">
+          <button id="wLogin">Log in</button>
+          <button class="ghost" id="wCreate">Create profile</button>
+        </div>
+        <div class="help" style="margin-top:8px">Profiles are stored locally on this browser. Passwords are salted+hashed; data is not end‑to‑end encrypted in this version.</div>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:12px;height:max-content">
+      <div class="feature"><h3> 💳 Auto-reconcile</h3><div class="muted">CSV & Plaid sync match payments to bills automatically.</div></div>
+      <div class="feature"><h3> 📈 Trends</h3><div class="muted">See category & subcategory spend over time; export when needed.</div></div>
+      <div class="feature"><h3> 📨 Email bill capture</h3><div class="muted">Parse statements from Gmail/Outlook to update due amounts & dates.</div></div>
+      <div class="feature"><h3> 👥 Multiple profiles</h3><div class="muted">Separate spaces for home, firm, or team members.</div></div>
+    </div>
+  </div>
+</section>
+  <div id="appShell" class="hidden">
+<header>
     <div class="flex">
       <h1>Bills & Budget <span class="sub">— Local, private, single‑file app</span></h1>
       <div class="right toolbar">
@@ -238,6 +290,7 @@
       </div>
     </section>
   </main>
+</div>
 
   <template id="rowTmpl">
     <tr>
@@ -773,6 +826,7 @@
       KEY = BASE_KEY;
       loadDB();
       refreshProfileBadge();
+      showWelcome();
       $('#authDlg').close();
     }
 
@@ -791,6 +845,15 @@
     $('#btnLoginProfile')?.addEventListener('click', async ()=>{ await loginProfile($('#profName').value, $('#profPass').value); });
     $('#btnSignOut')?.addEventListener('click', signOutProfile);
     $('#btnCloseAuth')?.addEventListener('click', ()=> $('#authDlg').close());
+
+    // Welcome gating helpers
+    function isLoggedIn(){ return !!getCurrentProfileId(); }
+    function showWelcome(){ document.getElementById('welcome')?.classList.remove('hidden'); document.getElementById('appShell')?.classList.add('hidden'); }
+    function hideWelcome(){ document.getElementById('welcome')?.classList.add('hidden'); document.getElementById('appShell')?.classList.remove('hidden'); }
+    async function handleWelcomeCreate(){ await createProfile($('#wName').value, $('#wPass').value); hideWelcome(); }
+    async function handleWelcomeLogin(){ await loginProfile($('#wName').value, $('#wPass').value); hideWelcome(); }
+    $('#wCreate')?.addEventListener('click', handleWelcomeCreate);
+    $('#wLogin')?.addEventListener('click', handleWelcomeLogin);
 
     // Plaid Link integration (frontend)
     const API_BASE = '';
@@ -839,6 +902,7 @@
     initProfiles();
     loadDB(); // also calls render
     refreshProfileBadge();
+    if(isLoggedIn()) hideWelcome(); else showWelcome();
     // If first load and no data, show hint
     if(!DB.bills.length){ setTimeout(()=>$('#addSample').click(), 200); }
   </script>
