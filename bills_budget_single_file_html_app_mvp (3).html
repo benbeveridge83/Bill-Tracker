@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bills & Budget — Single‑File App</title>
+  <style>
+    :root{
+      --bg:#f8fafc; --card:#ffffff; --muted:#f1f5f9; --text:#0f172a; --sub:#475569;
+      --ok:#16a34a; --warn:#ca8a04; --bad:#dc2626; --accent:#0ea5e9; --border:#e5e7eb
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    header{position:sticky;top:0;background:linear-gradient(180deg,#ffffff,#fffffff2);border-bottom:1px solid var(--border);padding:12px 16px;z-index:10}
+    h1{margin:0;font-size:18px} .sub{color:var(--sub)}
+    main{max-width:1200px;margin:20px auto;padding:0 16px;display:grid;gap:16px;grid-template-columns:1fr}
+    @media(min-width:1000px){main{grid-template-columns:320px 1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 4px 16px #0000000f}
+    .card h2{margin:0;font-size:16px;padding:12px 14px;border-bottom:1px solid var(--border)}
+    .pad{padding:12px 14px}
+    label{display:block;margin:10px 0 4px;color:#334155}
+    input,select,textarea{width:100%;padding:9px 10px;border-radius:10px;border:1px solid #cbd5e1;background:#ffffff;color:var(--text)}
+    button{background:var(--accent);color:#ffffff;border:0;padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
+    button.ghost{background:#ffffff;color:var(--text);border:1px solid var(--border)}
+    button.destr{background:var(--bad);color:#fff}
+    .row{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+    .row3{display:grid;gap:10px;grid-template-columns:1fr 1fr 1fr}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;background:var(--muted);border-bottom:1px solid var(--border);padding:10px 8px;text-align:left;font-weight:600}
+    tbody td{border-bottom:1px solid var(--border);padding:8px}
+    .chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
+    .ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+    .warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+    .bad{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+    .upc{background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+    .flex{display:flex;gap:10px;align-items:center}
+    .right{margin-left:auto}
+    .muted{color:#64748b}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+    .kpi{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    @media(min-width:720px){.kpi{grid-template-columns:repeat(4,1fr)}}
+    .k{background:#ffffff;border:1px solid var(--border);border-radius:12px;padding:12px}
+    .k strong{display:block;font-size:20px}
+    .help{font-size:12px;color:#64748b;margin-top:6px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="flex">
+      <h1>Bills & Budget <span class="sub">— Local, private, single‑file app</span></h1>
+      <div class="right toolbar">
+        <button id="btnBackup">Backup JSON</button>
+        <label class="ghost" style="display:inline-block">
+          <input id="restoreFile" type="file" accept="application/json" class="hidden" />
+          <span class="ghost" style="padding:10px 14px;border-radius:12px;border:1px solid #334155;cursor:pointer;display:inline-block">Restore</span>
+        </label>
+        <button class="ghost" id="btnICS">Download .ics</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left: Add/Edit bill, Filters, Import -->
+    <section class="card">
+      <h2>Add / Edit Bill</h2>
+      <div class="pad">
+        <form id="billForm">
+          <input type="hidden" id="billId" />
+          <label>Bill name / Payee</label>
+          <input id="name" required placeholder="e.g., Comcast, Mortgage, LawPay subscription" />
+
+          <div class="row">
+            <div>
+              <label>Category</label>
+              <select id="category">
+                <option>Household</option>
+                <option>Business</option>
+              </select>
+            </div>
+            <div>
+              <label>Amount (typical)</label>
+              <input id="amount" type="number" step="0.01" min="0" placeholder="e.g., 129.99" />
+            </div>
+          </div>
+
+          <div class="row3">
+            <div>
+              <label>Frequency</label>
+              <select id="frequency">
+                <option value="monthly">Monthly</option>
+                <option value="weekly">Weekly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+                <option value="custom">Custom (days)</option>
+              </select>
+            </div>
+            <div>
+              <label>Anchor due date (first / next due)</label>
+              <input id="anchor" type="date" />
+            </div>
+            <div id="customDaysWrap" class="hidden">
+              <label>Every N days</label>
+              <input id="customDays" type="number" min="1" step="1" placeholder="e.g., 45" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Autopay?</label>
+              <select id="autopay">
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+              <div class="help">If yes, status will flip to <em>Expected Paid</em> on the due date unless reconciled.</div>
+            </div>
+            <div>
+              <label>Account (optional)</label>
+              <input id="account" placeholder="e.g., Chase Checking, AmEx" />
+            </div>
+          </div>
+
+          <label>Notes / matching keywords (comma‑separated)</label>
+          <input id="notes" placeholder="e.g., 'XFINITY, COMCAST, 1234' for auto‑matching" />
+
+          <div class="toolbar" style="margin-top:10px">
+            <button type="submit">Save Bill</button>
+            <button type="button" class="ghost" id="resetForm">Reset</button>
+            <button type="button" class="destr right" id="deleteBill" title="Delete selected bill">Delete</button>
+          </div>
+        </form>
+
+        <hr style="border-color:#1f2937;margin:16px 0">
+
+        <h3 style="margin:0 0 8px 0">Filters & Data</h3>
+        <div class="toolbar">
+          <select id="filterCat">
+            <option value="all">All Categories</option>
+            <option value="Household">Household</option>
+            <option value="Business">Business</option>
+          </select>
+          <select id="filterStatus">
+            <option value="any">Any status</option>
+            <option value="overdue">Overdue</option>
+            <option value="due">Due (7 days)</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="paid">Paid (this period)</option>
+          </select>
+          <button class="ghost" id="btnExportCSV">Export CSV</button>
+        </div>
+
+        <div style="margin-top:12px">
+          <label>Import bank CSV (date, description, amount[, account])</label>
+          <input id="csvFile" type="file" accept=".csv" />
+          <div class="help">We scan newly imported transactions to auto‑reconcile bills by amount ±$1 and keywords.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: KPIs + Bills table -->
+    <section class="card">
+      <h2>Overview</h2>
+      <div class="pad">
+        <div class="kpi" id="kpis">
+          <div class="k"><div class="muted">Overdue</div><strong id="kOverdue">0</strong></div>
+          <div class="k"><div class="muted">Due in 7 days</div><strong id="kDue">$0.00</strong></div>
+          <div class="k"><div class="muted">Month total</div><strong id="kMonth">$0.00</strong></div>
+          <div class="k"><div class="muted">Reconciled this month</div><strong id="kPaid">$0.00</strong></div>
+        </div>
+      </div>
+      <h2 style="border-top:1px solid #374151">Bills</h2>
+      <div class="pad" style="padding-top:0">
+        <div class="toolbar" style="margin:10px 0">
+          <input id="search" placeholder="Search by name or note" />
+          <label style="display:inline-flex;align-items:center;gap:6px">
+            Sort
+            <select id="sortBy">
+              <option value="due">Due date</option>
+              <option value="amountDesc">Amount: High→Low</option>
+              <option value="amountAsc">Amount: Low→High</option>
+            </select>
+          </label>
+          <button class="ghost" id="addSample">Add sample data</button>
+          <button class="ghost" id="clearAll">Reset app</button>
+        </div>
+        <div style="max-height:60vh;overflow:auto;border:1px solid #334155;border-radius:12px">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Cat.</th>
+                <th class="mono">Amount</th>
+                <th>Due</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="billRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <template id="rowTmpl">
+    <tr>
+      <td><strong class="nm"></strong><div class="muted mono kw"></div></td>
+      <td class="ct"></td>
+      <td class="am mono"></td>
+      <td class="du"></td>
+      <td class="st"></td>
+      <td>
+        <div class="toolbar">
+          <button class="ghost btnEdit">Edit</button>
+          <button class="ghost btnPay">Mark Paid</button>
+          <button class="ghost btnSkip" title="Skip this occurrence">Skip</button>
+        </div>
+      </td>
+    </tr>
+  </template>
+
+  <dialog id="payDlg" style="border:0;border-radius:14px;padding:0;max-width:420px;width:calc(100% - 24px)">
+    <div class="card" style="border:0">
+      <h2 style="border:0">Mark Paid</h2>
+      <div class="pad">
+        <div class="row">
+          <div>
+            <label>Paid date</label>
+            <input id="paidDate" type="date" />
+          </div>
+          <div>
+            <label>Amount</label>
+            <input id="paidAmount" type="number" step="0.01" />
+          </div>
+        </div>
+        <label>Memo</label>
+        <input id="paidMemo" placeholder="Check #, confirmation #, etc." />
+        <div class="toolbar" style="margin-top:12px">
+          <button id="confirmPaid">Save</button>
+          <button class="ghost right" id="cancelPaid">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    // ---------- Utilities ----------
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+    const fmtMoney = n => (n||0).toLocaleString(undefined,{style:'currency',currency:'USD'});
+    const today = () => new Date(new Date().toDateString());
+    const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x };
+    const addMonths = (d,n) => { const x=new Date(d); const day=x.getDate(); x.setMonth(x.getMonth()+n); if(x.getDate()<day){ x.setDate(0); } return x };
+    const addYears = (d,n) => { const x=new Date(d); x.setFullYear(x.getFullYear()+n); return x };
+    const toISO = d => new Date(d).toISOString().slice(0,10);
+    const near = (a,b,tol=1) => Math.abs((a||0)-(b||0)) <= tol;
+    const uid = () => Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+
+    // ---------- DB ----------
+    const KEY = 'billDB_v1';
+    let DB = { bills:[], txns:[] };
+    function loadDB(){ try{ DB = JSON.parse(localStorage.getItem(KEY)) || DB; }catch(e){} renderAll(); }
+    function saveDB(){ localStorage.setItem(KEY, JSON.stringify(DB)); }
+
+    // ---------- Scheduling ----------
+    function nextDueFrom(bill, fromDate){
+      const base = new Date(fromDate||today());
+      let due = bill.nextDue ? new Date(bill.nextDue) : (bill.anchor? new Date(bill.anchor) : today());
+      if(isNaN(due)) due = today();
+      const freq = bill.frequency||'monthly';
+      const step = () => {
+        if(freq==='weekly') due = addDays(due,7);
+        else if(freq==='monthly') due = addMonths(due,1);
+        else if(freq==='quarterly') due = addMonths(due,3);
+        else if(freq==='yearly') due = addYears(due,1);
+        else if(freq==='custom') due = addDays(due, Math.max(1, +bill.customDays||30));
+        else due = addMonths(due,1);
+      };
+      while(due < base) step();
+      return due;
+    }
+
+    function statusFor(bill){
+      const due = nextDueFrom(bill);
+      const t = today();
+      // Was it reconciled this period?
+      const rec = DB.txns.find(tx =>
+        tx.billId===bill.id && tx.periodKey===periodKey(bill)
+      );
+      if(rec) return { code:'paid', label:'Paid', cls:'ok', due };
+      if(due < t) return { code:'overdue', label:'Overdue', cls:'bad', due };
+      if((due - t) / 86400000 <= 7) return { code:'due', label: bill.autopay==='yes' ? 'Expected Paid (autopay)' : 'Due soon', cls:'warn', due };
+      return { code:'upcoming', label:'Upcoming', cls:'upc', due };
+    }
+
+    function periodKey(bill){
+      const due = nextDueFrom(bill);
+      return bill.frequency+':'+toISO(due);
+    }
+
+    // ---------- Render ----------
+    function renderAll(){
+      renderTable();
+      renderKPIs();
+    }
+
+    function renderKPIs(){
+      const t = today();
+      const catSel = $('#filterCat') ? $('#filterCat').value : 'all';
+      const stSel = $('#filterStatus') ? $('#filterStatus').value : 'any';
+
+      let overdue = 0, dueAmt = 0, monthTotal = 0, paidTotal = 0;
+
+      // Bills filtered by selected category
+      const bills = DB.bills.filter(b=> (catSel==='all' || b.category===catSel));
+
+      bills.forEach(b=>{
+        const st = statusFor(b);
+        const amt = +b.amount||0;
+        const due = st.due;
+        // Overdue/Due KPI respect the Status filter if applied
+        if(stSel==='any' || st.code===stSel){
+          if(st.code==='overdue') overdue++;
+          if(st.code==='due') dueAmt += amt;
+        }
+        // Month total respects Category filter (not Status)
+        if(due.getMonth()===t.getMonth() && due.getFullYear()===t.getFullYear()) monthTotal += amt;
+      });
+
+      // Paid total this month limited to the same Category filter
+      DB.txns.forEach(tx=>{
+        const d = new Date(tx.date);
+        if(d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear()){
+          const b = DB.bills.find(bb=>bb.id===tx.billId);
+          if(b && (catSel==='all' || b.category===catSel)) paidTotal += (+tx.amount||0);
+        }
+      });
+
+      $('#kOverdue').textContent = overdue;
+      $('#kDue').textContent = fmtMoney(dueAmt);
+      $('#kMonth').textContent = fmtMoney(monthTotal);
+      $('#kPaid').textContent = fmtMoney(paidTotal);
+    }
+
+    function renderTable(){
+      const tbody = $('#billRows');
+      tbody.innerHTML = '';
+      const q = ($('#search').value||'').toLowerCase();
+      const cat = $('#filterCat').value;
+      const stf = $('#filterStatus').value;
+      DB.bills
+        .filter(b=>!q || (b.name||'').toLowerCase().includes(q) || (b.notes||'').toLowerCase().includes(q))
+        .filter(b=>cat==='all' || b.category===cat)
+        .sort((a,b)=>{
+        const sortBy = document.getElementById('sortBy')?.value || 'due';
+        if (sortBy === 'amountAsc')  return (+a.amount||0) - (+b.amount||0);
+        if (sortBy === 'amountDesc') return (+b.amount||0) - (+a.amount||0);
+        return new Date(statusFor(a).due) - new Date(statusFor(b).due);
+      })
+        .forEach(bill=>{
+          const st = statusFor(bill);
+          if(stf!=='any' && st.code!==stf) return;
+          const tr = document.importNode($('#rowTmpl').content,true);
+          tr.querySelector('.nm').textContent = bill.name||'';
+          tr.querySelector('.kw').textContent = bill.notes||'';
+          tr.querySelector('.ct').textContent = bill.category||'';
+          tr.querySelector('.am').textContent = fmtMoney(+bill.amount||0);
+          tr.querySelector('.du').textContent = toISO(st.due);
+          const stEl = tr.querySelector('.st');
+          const span = document.createElement('span');
+          span.className = `chip ${st.cls}`; span.textContent = st.label; stEl.appendChild(span);
+          tr.querySelector('.btnEdit').onclick = ()=> fillForm(bill);
+          tr.querySelector('.btnPay').onclick = ()=> openPay(bill);
+          tr.querySelector('.btnSkip').onclick = ()=> skipOnce(bill);
+          tbody.appendChild(tr);
+        });
+    }
+
+    function fillForm(b){
+      $('#billId').value = b.id;
+      $('#name').value = b.name||'';
+      $('#category').value = b.category||'Household';
+      $('#amount').value = b.amount||'';
+      $('#frequency').value = b.frequency||'monthly';
+      $('#anchor').value = b.anchor? toISO(b.anchor): '';
+      $('#customDays').value = b.customDays||'';
+      $('#autopay').value = b.autopay||'no';
+      $('#account').value = b.account||'';
+      $('#notes').value = b.notes||'';
+      toggleCustom();
+    }
+
+    function resetForm(){ $('#billForm').reset(); $('#billId').value=''; toggleCustom(); }
+
+    function toggleCustom(){ $('#customDaysWrap').classList.toggle('hidden', $('#frequency').value!=='custom'); }
+
+    // ---------- Actions ----------
+    $('#frequency').addEventListener('change', toggleCustom);
+
+    $('#billForm').addEventListener('submit', e=>{
+      e.preventDefault();
+      const id = $('#billId').value || uid();
+      const bill = {
+        id,
+        name: $('#name').value.trim(),
+        category: $('#category').value,
+        amount: +$('#amount').value||0,
+        frequency: $('#frequency').value,
+        anchor: $('#anchor').value ? toISO($('#anchor').value) : toISO(today()),
+        customDays: +$('#customDays').value||'',
+        autopay: $('#autopay').value,
+        account: $('#account').value.trim(),
+        notes: $('#notes').value.trim(),
+        nextDue: undefined,
+        lastPaid: undefined
+      };
+      const i = DB.bills.findIndex(b=>b.id===id);
+      if(i>-1) DB.bills[i]=bill; else DB.bills.push(bill);
+      saveDB(); renderAll(); resetForm();
+    });
+
+    $('#resetForm').onclick = resetForm;
+
+    $('#deleteBill').onclick = ()=>{
+      const id = $('#billId').value; if(!id) return;
+      if(confirm('Delete this bill?')){
+        DB.bills = DB.bills.filter(b=>b.id!==id);
+        DB.txns = DB.txns.filter(t=>t.billId!==id);
+        saveDB(); renderAll(); resetForm();
+      }
+    };
+
+    function skipOnce(bill){
+      const st = statusFor(bill);
+      bill.nextDue = toISO(nextDueFrom(bill, addDays(st.due,1))); // move to next cycle
+      saveDB(); renderAll();
+    }
+
+    // Paid dialog
+    let activeBill=null;
+    function openPay(b){
+      activeBill=b; $('#paidDate').value = toISO(today()); $('#paidAmount').value = b.amount||0; $('#paidMemo').value='';
+      $('#payDlg').showModal();
+    }
+    $('#cancelPaid').onclick = ()=> $('#payDlg').close();
+    $('#confirmPaid').onclick = ()=>{
+      if(!activeBill) return;
+      const d = $('#paidDate').value || toISO(today());
+      const amt = +$('#paidAmount').value||0;
+      const memo = $('#paidMemo').value||'';
+      const st = statusFor(activeBill);
+      DB.txns.push({ id: uid(), billId: activeBill.id, date: d, amount: amt, memo, periodKey: periodKey(activeBill) });
+      activeBill.lastPaid = d;
+      activeBill.nextDue = toISO(nextDueFrom(activeBill, addDays(st.due,1)));
+      saveDB(); renderAll(); $('#payDlg').close();
+    };
+
+    // Filters/search
+    $('#search').addEventListener('input', renderTable);
+    $('#filterCat').addEventListener('change', ()=>{ renderTable(); renderKPIs(); });
+    $('#filterStatus').addEventListener('change', ()=>{ renderTable(); renderKPIs(); });
+    document.getElementById('sortBy')?.addEventListener('change', renderTable);
+
+    // Sample data
+    $('#addSample').onclick = ()=>{
+      if(!confirm('Insert sample bills?')) return;
+      const base = toISO(today());
+      const samples = [
+        {name:'Mortgage',category:'Household',amount:2100,frequency:'monthly',anchor:base,autopay:'yes',notes:'SERVICER, MORTGAGE'},
+        {name:'Comcast Internet',category:'Household',amount:89.99,frequency:'monthly',anchor:base,autopay:'yes',notes:'XFINITY, COMCAST'},
+        {name:'Electric (CenterPoint)',category:'Household',amount:145,frequency:'monthly',anchor:base,autopay:'no',notes:'CENTERPOINT, ELECTRIC'},
+        {name:'Phone (Sangoma Talk)',category:'Business',amount:60,frequency:'monthly',anchor:base,autopay:'yes',notes:'SANGOMA, PBXACT'},
+        {name:'LawPay',category:'Business',amount:20,frequency:'monthly',anchor:base,autopay:'yes',notes:'LAWPAY'}
+      ];
+      samples.forEach(s=> DB.bills.push({id:uid(),...s}));
+      saveDB(); renderAll();
+    };
+
+    // Reset app
+    $('#clearAll').onclick = ()=>{
+      if(confirm('This clears all data. Continue?')){ localStorage.removeItem(KEY); DB={bills:[],txns:[]}; renderAll(); resetForm(); }
+    };
+
+    // Export CSV of bills
+    $('#btnExportCSV').onclick = ()=>{
+      const rows = [['name','category','amount','frequency','anchor','autopay','account','notes']]
+        .concat(DB.bills.map(b=>[b.name,b.category,b.amount,b.frequency,b.anchor,b.autopay,b.account,b.notes]));
+      const csv = rows.map(r=>r.map(v=>`"${(v??'').toString().replaceAll('"','""')}"`).join(',')).join('\n');
+      download('bills.csv', csv, 'text/csv');
+    };
+
+    // Backup / Restore
+    $('#btnBackup').onclick = ()=> download('bills_backup.json', JSON.stringify(DB,null,2), 'application/json');
+    $('#restoreFile').addEventListener('change', async e=>{
+      const f=e.target.files[0]; if(!f) return; const txt=await f.text();
+      try{ const obj=JSON.parse(txt); if(!obj.bills||!obj.txns) throw 0; DB=obj; saveDB(); renderAll(); alert('Restored!'); }
+      catch(err){ alert('Invalid backup file'); }
+      e.target.value='';
+    });
+
+    // ICS calendar export
+    $('#btnICS').onclick = ()=>{
+      const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//BillsApp//EN'];
+      DB.bills.forEach(b=>{
+        const due = nextDueFrom(b);
+        const dt = toISO(due).replaceAll('-','');
+        const uidv = uid()+"@billsapp";
+        lines.push('BEGIN:VEVENT');
+        lines.push('UID:'+uidv);
+        lines.push('DTSTAMP:'+dt+'T120000Z');
+        lines.push('SUMMARY:'+escapeICS(`[Bill] ${b.name} — ${fmtMoney(+b.amount||0)}`));
+        lines.push('DESCRIPTION:'+escapeICS(b.notes||''));
+        lines.push('DTSTART;VALUE=DATE:'+dt);
+        // RRULE for recurrence
+        const r = (b.frequency==='weekly')?'FREQ=WEEKLY':(b.frequency==='monthly')?'FREQ=MONTHLY':(b.frequency==='quarterly')?'FREQ=MONTHLY;INTERVAL=3':(b.frequency==='yearly')?'FREQ=YEARLY':(b.frequency==='custom')?`FREQ=DAILY;INTERVAL=${Math.max(1,+b.customDays||30)}`:'';
+        if(r) lines.push('RRULE:'+r);
+        lines.push('END:VEVENT');
+      });
+      lines.push('END:VCALENDAR');
+      download('bills.ics', lines.join('\r\n'), 'text/calendar');
+    };
+
+    function escapeICS(s){ return (s||'').replace(/[\\,;]/g, m=>'\\'+m).replace(/\n/g,'\\n'); }
+
+    function download(name, content, mime){
+      const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type:mime})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
+    }
+
+    // CSV import + auto-reconcile
+    $('#csvFile').addEventListener('change', async e=>{
+      const f=e.target.files[0]; if(!f) return; const txt=await f.text();
+      const rows=parseCSV(txt); // expects header
+      const idx = indexCols(rows[0]);
+      const newTx=[]; for(let i=1;i<rows.length;i++){
+        const r=rows[i]; if(!r || !r.length) continue;
+        const date=r[idx.date]||r[idx.Date]||r[0];
+        const desc=r[idx.description]||r[idx.Description]||r[1]||'';
+        let amt=r[idx.amount]||r[idx.Amount]||r[2]||'0';
+        amt = +String(amt).replace(/[^-\d.]/g,'');
+        const account=r[idx.account]||r[idx.Account]||'';
+        newTx.push({id:uid(),date:toISO(date),description:desc,amount:amt,account});
+      }
+      // Append transactions and try to reconcile
+      const before = DB.txns.length;
+      newTx.forEach(tx=>{
+        // Try match a bill due within +/-5 days with amount ~ and notes/name keyword
+        const tdate = new Date(tx.date);
+        const candidates = DB.bills.map(b=>({b, st: statusFor(b)})).filter(x=>{
+          const due=x.st.due; const days=Math.abs((due - tdate)/86400000);
+          const kw=(x.b.notes+' '+x.b.name).toLowerCase(); const d=tx.description.toLowerCase();
+          return days<=5 && near(+x.b.amount||0, +tx.amount||0, 1) && (!kw || kw.split(/[, ]+/).some(k=>k && d.includes(k.trim())));
+        });
+        if(candidates.length){
+          const {b,st} = candidates[0];
+          DB.txns.push({ id: uid(), billId: b.id, date: tx.date, amount: tx.amount, memo: tx.description, periodKey: periodKey(b) });
+          b.lastPaid = tx.date; b.nextDue = toISO(nextDueFrom(b, addDays(st.due,1)));
+        }
+      });
+      saveDB(); renderAll();
+      alert(`Imported ${newTx.length} transactions and reconciled ${(DB.txns.length-before)} bills.`);
+      e.target.value='';
+    });
+
+    function indexCols(header){
+      const idx={}; header.forEach((h,i)=>{ idx[h]=i; idx[h.toLowerCase()]=i; }); return idx;
+    }
+
+    function parseCSV(text){
+      const out=[]; let row=[]; let cur=''; let inQ=false; for(let i=0;i<text.length;i++){
+        const c=text[i], n=text[i+1];
+        if(inQ){
+          if(c==='"' && n==='"'){ cur+='"'; i++; continue; }
+          if(c==='"'){ inQ=false; continue; }
+          cur+=c; continue;
+        }
+        if(c==='"'){ inQ=true; continue; }
+        if(c===','){ row.push(cur); cur=''; continue; }
+        if(c==='\n'){ row.push(cur); out.push(row); row=[]; cur=''; continue; }
+        if(c==='\r'){ continue; }
+        cur+=c;
+      }
+      row.push(cur); out.push(row);
+      return out.filter(r=>r.length && r.some(x=>String(x).trim()!=='') );
+    }
+
+    // Init
+    loadDB(); // also calls render
+    // If first load and no data, show hint
+    if(!DB.bills.length){ setTimeout(()=>$('#addSample').click(), 200); }
+  </script>
+</body>
+</html>
