@@ -809,6 +809,11 @@ function makeSalt(len = 16){
     window.crypto.getRandomValues(u);
     return toB64(u);
   }
+  // Fallback: not as strong, but avoids crashing on older / restricted environments
+  const rand = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, len);
+  return btoa(rand);
+}
+
   // Fallback: not as strong, but avoids crashing
   const rand = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, len);
   return btoa(rand);
@@ -892,6 +897,7 @@ async function handleWelcomeCreate(){
   await createProfile($('#wName').value, $('#wPass').value);
   hideWelcome();
 }
+
     async function handleWelcomeLogin(){ await loginProfile($('#wName').value, $('#wPass').value); hideWelcome(); }
     $('#wCreate')?.addEventListener('click', handleWelcomeCreate);
     $('#wLogin')?.addEventListener('click', handleWelcomeLogin);
