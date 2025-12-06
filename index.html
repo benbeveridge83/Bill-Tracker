@@ -799,71 +799,89 @@ const GMAIL_CLIENT_ID = "1234567890-abc123def456.apps.googleusercontent.com";
       return DB.txns.length - before;
     }
 
-    // ===== Profiles (local) =====
-    function toB64(u){ let s=''; u.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
-    function fromB64(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
-function makeSalt(len = 16){
-  // Prefer strong random if available
-  if (window.crypto && window.crypto.getRandomValues) {
-    const u = new Uint8Array(len);
-    window.crypto.getRandomValues(u);
-    return toB64(u);
-  }
-  // Fallback so the app doesn't crash on older / restricted environments
-  const rand =
-    (Math.random().toString(36).slice(2) +
-     Math.random().toString(36).slice(2)).slice(0, len);
-  return btoa(rand);
-}
-
-
-  // Fallback: not as strong, but avoids crashing
-  const rand = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, len);
-  return btoa(rand);
-}
-    async function sha256HexBytes(bytes){ const buf=await crypto.subtle.digest('SHA-256', bytes); const arr=new Uint8Array(buf); return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join(''); }
-    async function passHash(password, saltB64){ const te=new TextEncoder(); const salt=fromB64(saltB64); const pw=te.encode(password); const data=new Uint8Array(salt.length+pw.length); data.set(salt,0); data.set(pw,salt.length); return await sha256HexBytes(data); }
-
-    function getProfiles(){ try{return JSON.parse(localStorage.getItem(PROFILES_KEY)||'[]')}catch(e){return []} }
-    function saveProfiles(list){ localStorage.setItem(PROFILES_KEY, JSON.stringify(list)); }
-    function getCurrentProfileId(){ return localStorage.getItem(CURRENT_KEY); }
-    function getCurrentProfile(){ const id=getCurrentProfileId(); if(!id) return null; return getProfiles().find(p=>p.id===id)||null; }
-    function profileKey(id){ return BASE_KEY+':'+id; }
-    function initProfiles(){ const pid=getCurrentProfileId(); if(pid){ KEY = profileKey(pid); } else { KEY = BASE_KEY; } }
-    function refreshProfileBadge(){ const btn=$('#btnProfile'); if(!btn) return; const p=getCurrentProfile(); btn.textContent = p ? ('Profile: '+p.name) : 'Profile'; }
-
-    async function createProfile(name, password){
-      name = (name||'').trim();
-      if(!name || !password){ alert('Enter name + password'); return; }
-      const list = getProfiles();
-      if(list.some(p=>p.name.toLowerCase()===name.toLowerCase())){ alert('Name already exists'); return; }
-      const salt = makeSalt();
-      const hash = await passHash(password, salt);
-      const id = uid();
-      list.push({id,name,salt,hash,createdAt: new Date().toISOString()});
-      saveProfiles(list);
-      // migrate legacy DB if present and no data yet for this profile
-      if(!localStorage.getItem(profileKey(id)) && localStorage.getItem(BASE_KEY)){
-        localStorage.setItem(profileKey(id), localStorage.getItem(BASE_KEY));
+    // ===== Profiles (local) – simplified (no crypto) =====
+    function getProfiles(){
+      try{
+        return JSON.parse(localStorage.getItem(PROFILES_KEY) || '[]');
+      }catch(e){
+        return [];
       }
+    }
+
+    function saveProfiles(list){
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(list));
+    }
+
+    function getCurrentProfileId(){
+      return localStorage.getItem(CURRENT_KEY);
+    }
+
+    function getCurrentProfile(){
+      const id = getCurrentProfileId();
+      if(!id) return null;
+      return getProfiles().find(p => p.id === id) || null;
+    }
+
+    function profileKey(id){
+      return BASE_KEY + ':' + id;
+    }
+
+    function initProfiles(){
+      const pid = getCurrentProfileId();
+      if(pid){
+        KEY = profileKey(pid);
+      } else {
+        KEY = BASE_KEY;
+      }
+    }
+
+    function refreshProfileBadge(){
+      const btn = $('#btnProfile');
+      if(!btn) return;
+      const p = getCurrentProfile();
+      btn.textContent = p ? ('Profile: ' + p.name) : 'Profile';
+    }
+
+    // NOTE: For this local app we store the password in plain text.
+    // That's okay for a personal tool running in your own browser.
+    function createProfile(name, password){
+      name = (name || '').trim();
+      if(!name || !password){
+        alert('Enter name + password');
+        return;
+      }
+      const list = getProfiles();
+      if(list.some(p => p.name.toLowerCase() === name.toLowerCase())){
+        alert('Name already exists');
+        return;
+      }
+      const id = uid();
+      list.push({ id, name, password });
+      saveProfiles(list);
+
+      // Set this as current profile
       localStorage.setItem(CURRENT_KEY, id);
       KEY = profileKey(id);
       loadDB();
       refreshProfileBadge();
-      $('#authDlg').close();
     }
 
-    async function loginProfile(name, password){
-      name=(name||'').trim();
-      const p = getProfiles().find(x=>x.name.toLowerCase()===name.toLowerCase());
-      if(!p){ alert('No such profile'); return; }
-      const hash = await passHash(password, p.salt);
-      if(hash!==p.hash){ alert('Wrong password'); return; }
+    function loginProfile(name, password){
+      name = (name || '').trim();
+      const list = getProfiles();
+      const p = list.find(x => x.name.toLowerCase() === name.toLowerCase());
+      if(!p){
+        alert('No such profile');
+        return;
+      }
+      if(p.password !== password){
+        alert('Wrong password');
+        return;
+      }
       localStorage.setItem(CURRENT_KEY, p.id);
       KEY = profileKey(p.id);
       loadDB();
       refreshProfileBadge();
-      $('#authDlg').close();
     }
 
     function signOutProfile(){
@@ -876,34 +894,67 @@ function makeSalt(len = 16){
     }
 
     function openProfileDlg(){
-      const dlg = $('#authDlg'); if(!dlg) return;
-      // fill existing profiles list
+      const dlg = $('#authDlg');
+      if(!dlg) return;
+
       const list = getProfiles();
-      const wrap = $('#profilesList'); if(wrap){ wrap.innerHTML=''; list.forEach(p=>{ const b=document.createElement('button'); b.className='ghost'; b.textContent=p.name; b.onclick=()=>{ $('#profName').value=p.name; $('#profPass').focus(); }; wrap.appendChild(b); }); }
+      const wrap = $('#profilesList');
+      if(wrap){
+        wrap.innerHTML = '';
+        list.forEach(p => {
+          const b = document.createElement('button');
+          b.className = 'ghost';
+          b.textContent = p.name;
+          b.onclick = () => {
+            $('#profName').value = p.name;
+            $('#profPass').focus();
+          };
+          wrap.appendChild(b);
+        });
+      }
+
       const cur = getCurrentProfile();
-      const info = $('#profileInfo'); if(info) info.textContent = cur ? ('Current: '+cur.name) : 'Current: Guest (no profile)';
+      const info = $('#profileInfo');
+      if(info) info.textContent = cur ? ('Current: ' + cur.name) : 'Current: Guest (no profile)';
+
       dlg.showModal();
     }
 
     $('#btnProfile')?.addEventListener('click', openProfileDlg);
-    $('#btnCreateProfile')?.addEventListener('click', async ()=>{ await createProfile($('#profName').value, $('#profPass').value); });
-    $('#btnLoginProfile')?.addEventListener('click', async ()=>{ await loginProfile($('#profName').value, $('#profPass').value); });
+    $('#btnCreateProfile')?.addEventListener('click', () => {
+      createProfile($('#profName').value, $('#profPass').value);
+    });
+    $('#btnLoginProfile')?.addEventListener('click', () => {
+      loginProfile($('#profName').value, $('#profPass').value);
+    });
     $('#btnSignOut')?.addEventListener('click', signOutProfile);
-    $('#btnCloseAuth')?.addEventListener('click', ()=> $('#authDlg').close());
+    $('#btnCloseAuth')?.addEventListener('click', () => $('#authDlg').close());
 
-    // Welcome gating helpers
+
+     // Welcome gating helpers
     function isLoggedIn(){ return !!getCurrentProfileId(); }
-    function showWelcome(){ document.getElementById('welcome')?.classList.remove('hidden'); document.getElementById('appShell')?.classList.add('hidden'); }
-    function hideWelcome(){ document.getElementById('welcome')?.classList.add('hidden'); document.getElementById('appShell')?.classList.remove('hidden'); }
-async function handleWelcomeCreate(){
-  await createProfile($('#wName').value, $('#wPass').value);
-  hideWelcome();
-}
+    function showWelcome(){
+      document.getElementById('welcome')?.classList.remove('hidden');
+      document.getElementById('appShell')?.classList.add('hidden');
+    }
+    function hideWelcome(){
+      document.getElementById('welcome')?.classList.add('hidden');
+      document.getElementById('appShell')?.classList.remove('hidden');
+    }
 
+    function handleWelcomeCreate(){
+      createProfile($('#wName').value, $('#wPass').value);
+      if(isLoggedIn()) hideWelcome();
+    }
 
-    async function handleWelcomeLogin(){ await loginProfile($('#wName').value, $('#wPass').value); hideWelcome(); }
+    function handleWelcomeLogin(){
+      loginProfile($('#wName').value, $('#wPass').value);
+      if(isLoggedIn()) hideWelcome();
+    }
+
     $('#wCreate')?.addEventListener('click', handleWelcomeCreate);
     $('#wLogin')?.addEventListener('click', handleWelcomeLogin);
+
     // ---------- Gmail import -> reconcileTransactions ----------
 
     async function gmailImportBills() {
