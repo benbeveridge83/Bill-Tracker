@@ -482,7 +482,7 @@ const GMAIL_CLIENT_ID = "1234567890-abc123def456.apps.googleusercontent.com";
       renderKPIs();
     }
 
-    function renderKPIs(){
+        function renderKPIs(){
       const t = today();
       const catSel = $('#filterCat') ? $('#filterCat').value : 'all';
       const stSel = $('#filterStatus') ? $('#filterStatus').value : 'any';
@@ -499,11 +499,13 @@ const GMAIL_CLIENT_ID = "1234567890-abc123def456.apps.googleusercontent.com";
           if(st.code==='overdue') overdueCnt++;
           if(st.code==='due') dueAmt += amt;
         }
+        // Count this bill's amount in *this month*
         if(due.getMonth()===t.getMonth() && due.getFullYear()===t.getFullYear()) monthTotal += amt;
         totOverdue += (+b.overdue||0);
         totBalance += (+b.balance||0);
       });
 
+      // Paid total this month (respecting category filter)
       DB.txns.forEach(tx=>{
         const d = new Date(tx.date);
         if(d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear()){
@@ -519,24 +521,7 @@ const GMAIL_CLIENT_ID = "1234567890-abc123def456.apps.googleusercontent.com";
       if($('#kTotOverdue')) $('#kTotOverdue').textContent = fmtMoney(totOverdue);
       if($('#kTotBalance')) $('#kTotBalance').textContent = fmtMoney(totBalance);
     }
-        // Month total respects Category filter (not Status)
-        if(due.getMonth()===t.getMonth() && due.getFullYear()===t.getFullYear()) monthTotal += amt;
-      });
 
-      // Paid total this month limited to the same Category filter
-      DB.txns.forEach(tx=>{
-        const d = new Date(tx.date);
-        if(d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear()){
-          const b = DB.bills.find(bb=>bb.id===tx.billId);
-          if(b && (catSel==='all' || b.category===catSel)) paidTotal += (+tx.amount||0);
-        }
-      });
-
-      $('#kOverdue').textContent = overdue;
-      $('#kDue').textContent = fmtMoney(dueAmt);
-      $('#kMonth').textContent = fmtMoney(monthTotal);
-      $('#kPaid').textContent = fmtMoney(paidTotal);
-    }
 
     function renderTable(){
       const tbody = $('#billRows');
