@@ -59,6 +59,10 @@
   .feature h3{margin:0 0 6px;font-size:15px}
   .hero .logo{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:14px;background:#0ea5e9;color:#fff;margin-bottom:12px;font-weight:800}
 </style>
+  <!-- Google Identity & Gmail API -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+
 <!-- Plaid Link SDK -->
   <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 </head>
@@ -215,6 +219,7 @@
             <option value="paid">Paid (this period)</option>
           </select>
           <button class="ghost" id="btnExportCSV">Export CSV</button>
+          <button class="ghost" id="btnGmailImport">Import from Gmail</button>
         </div>
 
         <div style="margin-top:12px">
@@ -383,6 +388,43 @@
     const toISO = d => new Date(d).toISOString().slice(0,10);
     const near = (a,b,tol=1) => Math.abs((a||0)-(b||0)) <= tol;
     const uid = () => Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+    // Helper: pull a dollar amount from text like "$123.45" or "Amount due: 89.99"
+    const extractAmount = (text) => {
+      if (!text) return null;
+      const cleaned = text.replace(/,/g, '');
+      const m = cleaned.match(/\$?\s*([0-9]+(?:\.[0-9]{2})?)/);
+      return m ? parseFloat(m[1]) : null;
+    };
+
+    // ---------- Gmail API (browser OAuth) ----------
+const GMAIL_CLIENT_ID = "1234567890-abc123def456.apps.googleusercontent.com";
+    const GMAIL_SCOPES = "https://www.googleapis.com/auth/gmail.readonly";
+
+    let gapiReady = false;
+    let gmailTokenClient = null;
+
+    function loadGmailClient() {
+      if (!window.gapi) {
+        // gapi.js might not be ready yet; retry shortly
+        setTimeout(loadGmailClient, 400);
+        return;
+      }
+      gapi.load("client", async () => {
+        try {
+          await gapi.client.init({
+            apiKey: "",
+            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest"],
+          });
+          gapiReady = true;
+          console.log("Gmail client ready");
+        } catch (e) {
+          console.error("Error init Gmail client", e);
+        }
+      });
+    }
+
+    // Initialize Gmail client when the page finishes loading
+    window.addEventListener("load", loadGmailClient);
 
     // ---------- DB ----------
     const BASE_KEY = 'billDB_v1';
@@ -854,6 +896,100 @@
     async function handleWelcomeLogin(){ await loginProfile($('#wName').value, $('#wPass').value); hideWelcome(); }
     $('#wCreate')?.addEventListener('click', handleWelcomeCreate);
     $('#wLogin')?.addEventListener('click', handleWelcomeLogin);
+    // ---------- Gmail import -> reconcileTransactions ----------
+
+    async function gmailImportBills() {
+      if (!gapiReady) {
+        alert("Gmail client not ready yet. Wait a moment and try again.");
+        return;
+      }
+
+      if (!gmailTokenClient) {
+        gmailTokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: GMAIL_CLIENT_ID,
+          scope: GMAIL_SCOPES,
+          callback: async (tokenResponse) => {
+            console.log("Gmail token", tokenResponse);
+            await fetchAndReconcileGmail();
+          },
+        });
+      }
+
+      // If we already have a token, skip the consent prompt if possible
+      gmailTokenClient.requestAccessToken({ prompt: "" });
+    }
+
+    async function fetchAndReconcileGmail() {
+      try {
+        // Search for bill/statement emails from last 60 days
+        const listRes = await gapi.client.gmail.users.messages.list({
+          userId: "me",
+          q: "subject:(bill OR statement OR payment due) newer_than:60d",
+          maxResults: 40,
+        });
+
+        const messages = listRes.result.messages || [];
+        if (!messages.length) {
+          alert("No recent bill-like emails found in Gmail search.");
+          return;
+        }
+
+        const txs = [];
+
+        for (const msg of messages) {
+          const detail = await gapi.client.gmail.users.messages.get({
+            userId: "me",
+            id: msg.id,
+            format: "full",
+          });
+
+          const headers = detail.result.payload.headers || [];
+          const getHeader = (name) => {
+            const h = headers.find(
+              (x) => x.name.toLowerCase() === name.toLowerCase()
+            );
+            return h ? h.value : "";
+          };
+
+          const subject = getHeader("Subject");
+          const from = getHeader("From");
+          const dateHeader = getHeader("Date");
+          let dateIso;
+          try {
+            dateIso = toISO(new Date(dateHeader));
+          } catch {
+            dateIso = toISO(today());
+          }
+
+          const snippet = detail.result.snippet || "";
+          const bodyText = snippet;
+          const amt = extractAmount(subject + " " + bodyText);
+
+          if (!amt) continue;
+
+          txs.push({
+            date: dateIso,
+            description: subject || "Bill email",
+            amount: Math.abs(amt),
+            memo: `From Gmail (${from})`,
+          });
+        }
+
+        if (!txs.length) {
+          alert("Scanned Gmail but could not find dollar amounts to match.");
+          return;
+        }
+
+        const matched = reconcileTransactions(txs);
+        alert(`Scanned ${txs.length} Gmail emails and reconciled ${matched} bills.`);
+      } catch (e) {
+        console.error("Gmail import error", e);
+        alert("Gmail import failed. See browser console for details.");
+      }
+    }
+
+    // Hook up button
+    document.getElementById("btnGmailImport")?.addEventListener("click", gmailImportBills);
 
     // Plaid Link integration (frontend)
     const API_BASE = '';
