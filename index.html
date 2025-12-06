@@ -802,7 +802,17 @@ const GMAIL_CLIENT_ID = "1234567890-abc123def456.apps.googleusercontent.com";
     // ===== Profiles (local) =====
     function toB64(u){ let s=''; u.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
     function fromB64(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
-    function makeSalt(len=16){ const u=new Uint8Array(len); crypto.getRandomValues(u); return toB64(u); }
+function makeSalt(len = 16){
+  // If crypto is available, use strong random
+  if (window.crypto && window.crypto.getRandomValues) {
+    const u = new Uint8Array(len);
+    window.crypto.getRandomValues(u);
+    return toB64(u);
+  }
+  // Fallback: not as strong, but avoids crashing
+  const rand = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, len);
+  return btoa(rand);
+}
     async function sha256HexBytes(bytes){ const buf=await crypto.subtle.digest('SHA-256', bytes); const arr=new Uint8Array(buf); return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join(''); }
     async function passHash(password, saltB64){ const te=new TextEncoder(); const salt=fromB64(saltB64); const pw=te.encode(password); const data=new Uint8Array(salt.length+pw.length); data.set(salt,0); data.set(pw,salt.length); return await sha256HexBytes(data); }
 
@@ -877,7 +887,11 @@ const GMAIL_CLIENT_ID = "1234567890-abc123def456.apps.googleusercontent.com";
     function isLoggedIn(){ return !!getCurrentProfileId(); }
     function showWelcome(){ document.getElementById('welcome')?.classList.remove('hidden'); document.getElementById('appShell')?.classList.add('hidden'); }
     function hideWelcome(){ document.getElementById('welcome')?.classList.add('hidden'); document.getElementById('appShell')?.classList.remove('hidden'); }
-    async function handleWelcomeCreate(){ await createProfile($('#wName').value, $('#wPass').value); hideWelcome(); }
+async function handleWelcomeCreate(){
+  alert('Create profile clicked');
+  await createProfile($('#wName').value, $('#wPass').value);
+  hideWelcome();
+}
     async function handleWelcomeLogin(){ await loginProfile($('#wName').value, $('#wPass').value); hideWelcome(); }
     $('#wCreate')?.addEventListener('click', handleWelcomeCreate);
     $('#wLogin')?.addEventListener('click', handleWelcomeLogin);
