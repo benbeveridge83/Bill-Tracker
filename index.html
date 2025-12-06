@@ -803,16 +803,19 @@ const GMAIL_CLIENT_ID = "1234567890-abc123def456.apps.googleusercontent.com";
     function toB64(u){ let s=''; u.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
     function fromB64(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
 function makeSalt(len = 16){
-  // If crypto is available, use strong random
+  // Prefer strong random if available
   if (window.crypto && window.crypto.getRandomValues) {
     const u = new Uint8Array(len);
     window.crypto.getRandomValues(u);
     return toB64(u);
   }
-  // Fallback: not as strong, but avoids crashing on older / restricted environments
-  const rand = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, len);
+  // Fallback so the app doesn't crash on older / restricted environments
+  const rand =
+    (Math.random().toString(36).slice(2) +
+     Math.random().toString(36).slice(2)).slice(0, len);
   return btoa(rand);
 }
+
 
   // Fallback: not as strong, but avoids crashing
   const rand = (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, len);
@@ -893,10 +896,10 @@ function makeSalt(len = 16){
     function showWelcome(){ document.getElementById('welcome')?.classList.remove('hidden'); document.getElementById('appShell')?.classList.add('hidden'); }
     function hideWelcome(){ document.getElementById('welcome')?.classList.add('hidden'); document.getElementById('appShell')?.classList.remove('hidden'); }
 async function handleWelcomeCreate(){
-  alert('Create profile clicked');
   await createProfile($('#wName').value, $('#wPass').value);
   hideWelcome();
 }
+
 
     async function handleWelcomeLogin(){ await loginProfile($('#wName').value, $('#wPass').value); hideWelcome(); }
     $('#wCreate')?.addEventListener('click', handleWelcomeCreate);
