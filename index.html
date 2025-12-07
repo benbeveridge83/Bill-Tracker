@@ -1008,7 +1008,11 @@
     }
   }
 
-  document.getElementById("btnGmailImport")?.addEventListener("click", gmailImportBills);
+document.getElementById("btnGmailImport")?.addEventListener("click", () => {
+  console.log("Gmail button clicked");
+  alert("Gmail button handler is running");
+  gmailImportBills();
+});
 
   // Plaid Link integration (frontend)
   const API_BASE = '';
