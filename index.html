@@ -1064,23 +1064,21 @@
   if(isLoggedIn()) hideWelcome(); else showWelcome();
   if(!DB.bills.length){ setTimeout(()=>$('#addSample').click(), 200); }
 
-// Wire Gmail button after DOM is fully ready
-window.addEventListener('DOMContentLoaded', () => {
-  const gmailBtn = document.getElementById('btnGmailImport');
-  console.log('DOMContentLoaded – gmailBtn =', gmailBtn);
+// Directly wire Gmail button (HTML is already loaded before this script runs)
+const gmailBtn = document.getElementById('btnGmailImport');
+console.log('Direct wiring – gmailBtn =', gmailBtn);
 
-  if (!gmailBtn) {
-    console.warn('Gmail button not found in DOM');
-    return;
-  }
-
+if (!gmailBtn) {
+  console.warn('Gmail button not found in DOM');
+} else {
   gmailBtn.addEventListener('click', (e) => {
     e.preventDefault(); // just in case
     console.log('Gmail Import button clicked');
     alert('Gmail button click handler is running');
     gmailImportBills();
   });
-});
+}
+
 
   
 </script>
