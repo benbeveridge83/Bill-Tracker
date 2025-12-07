@@ -928,7 +928,7 @@
   $('#wCreate')?.addEventListener('click', handleWelcomeCreate);
   $('#wLogin')?.addEventListener('click', handleWelcomeLogin);
 
-    // ---------- Gmail import -> reconcileTransactions ----------
+  // ---------- Gmail import -> reconcileTransactions ----------
   async function gmailImportBills() {
     console.log("gmailImportBills() called. gapiReady =", gapiReady, "google =", window.google);
 
@@ -973,6 +973,7 @@
       alert("Error starting Google auth. See console for details.");
     }
   }
+
 
 
   async function fetchAndReconcileGmail() {
