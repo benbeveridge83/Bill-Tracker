@@ -1057,33 +1057,31 @@
   $('#btnPlaidLink')?.addEventListener('click', plaidConnect);
   $('#btnPlaidSync')?.addEventListener('click', plaidSync);
 
-  // Init
+    // Init
   initProfiles();
   loadDB();
   refreshProfileBadge();
-  if(isLoggedIn()) hideWelcome(); else showWelcome();
-  if(!DB.bills.length){ setTimeout(()=>$('#addSample').click(), 200); }
+  if (isLoggedIn()) hideWelcome(); else showWelcome();
+  if (!DB.bills.length) {
+    setTimeout(() => $('#addSample').click(), 200);
+  }
 
-// Directly wire Gmail button (HTML already loaded before this script runs)
-const gmailBtn = document.getElementById('btnGmailImport');
-console.log('Direct wiring – gmailBtn =', gmailBtn);
+  // Directly wire Gmail button (HTML already loaded before this script runs)
+  const gmailBtn = document.getElementById('btnGmailImport');
+  console.log('Direct wiring – gmailBtn =', gmailBtn);
 
-if (!gmailBtn) {
-  console.warn('Gmail button not found in DOM');
-} else {
-  gmailBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    console.log('Gmail Import button clicked');
-    alert('Gmail button click handler is running');
-    gmailImportBills();
-  });
-}
-
-}
-
-
-  
+  if (!gmailBtn) {
+    console.warn('Gmail button not found in DOM');
+  } else {
+    gmailBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      console.log('Gmail Import button clicked');
+      alert('Gmail button click handler is running');
+      gmailImportBills();
+    });
+  }
 </script>
+
 
 </body>
 </html>
