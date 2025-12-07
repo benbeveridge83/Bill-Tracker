@@ -223,9 +223,14 @@
             <option value="paid">Paid (this period)</option>
           </select>
           <button class="ghost" id="btnExportCSV">Export CSV</button>
-<button class="ghost" id="btnGmailImport">
+<button
+  class="ghost"
+  id="btnGmailImport"
+  onclick="gmailImportBills()"
+>
   Import from Gmail
 </button>
+
 
         </div>
 
@@ -928,51 +933,52 @@
   $('#wCreate')?.addEventListener('click', handleWelcomeCreate);
   $('#wLogin')?.addEventListener('click', handleWelcomeLogin);
 
-  // ---------- Gmail import -> reconcileTransactions ----------
-  async function gmailImportBills() {
-    console.log("gmailImportBills() called. gapiReady =", gapiReady, "google =", window.google);
+// ---------- Gmail import -> reconcileTransactions ----------
+async function gmailImportBills() {
+  console.log("gmailImportBills() called. gapiReady =", gapiReady, "google =", window.google);
 
-    // Check that the Google Identity script actually loaded
-    if (!window.google || !google.accounts || !google.accounts.oauth2) {
-      console.error("Google Identity Services not available on window.google");
-      alert(
-        "Google sign-in script didn't load.\n\n" +
-        "Check that:\n" +
-        "• https://accounts.google.com is not blocked by an extension/ad-blocker\n" +
-        "• Third-party scripts are allowed for this site."
-      );
-      return;
-    }
-
-    if (!gapiReady) {
-      alert("Gmail client not ready yet. Wait a moment and try again.");
-      return;
-    }
-
-    if (!gmailTokenClient) {
-      console.log("Initializing gmailTokenClient");
-      gmailTokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: GMAIL_CLIENT_ID,
-        scope: GMAIL_SCOPES,
-        callback: async (tokenResponse) => {
-          console.log("Token callback fired:", tokenResponse);
-          try {
-            await fetchAndReconcileGmail();
-          } catch (err) {
-            console.error("fetchAndReconcileGmail() failed:", err);
-          }
-        },
-      });
-    }
-
-    try {
-      console.log("Requesting access token...");
-      gmailTokenClient.requestAccessToken({ prompt: "" });
-    } catch (e) {
-      console.error("requestAccessToken error", e);
-      alert("Error starting Google auth. See console for details.");
-    }
+  // Check that the Google Identity script actually loaded
+  if (!window.google || !google.accounts || !google.accounts.oauth2) {
+    console.error("Google Identity Services not available on window.google");
+    alert(
+      "Google sign-in script didn't load.\n\n" +
+      "Check that:\n" +
+      "• https://accounts.google.com is not blocked by an extension/ad-blocker\n" +
+      "• Third-party scripts are allowed for this site."
+    );
+    return;
   }
+
+  if (!gapiReady) {
+    alert("Gmail client not ready yet. Wait a moment and try again.");
+    return;
+  }
+
+  if (!gmailTokenClient) {
+    console.log("Initializing gmailTokenClient");
+    gmailTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GMAIL_CLIENT_ID,
+      scope: GMAIL_SCOPES,
+      callback: async (tokenResponse) => {
+        console.log("Token callback fired:", tokenResponse);
+        try {
+          await fetchAndReconcileGmail();
+        } catch (err) {
+          console.error("fetchAndReconcileGmail() failed:", err);
+        }
+      },
+    });
+  }
+
+  try {
+    console.log("Requesting access token...");
+    gmailTokenClient.requestAccessToken({ prompt: "" });
+  } catch (e) {
+    console.error("requestAccessToken error", e);
+    alert("Error starting Google auth. See console for details.");
+  }
+}
+
 
 
 
