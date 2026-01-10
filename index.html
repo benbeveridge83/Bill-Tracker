@@ -982,73 +982,87 @@ async function gmailImportBills() {
 
 
 
-  async function fetchAndReconcileGmail() {
-    try {
-      const listRes = await gapi.client.gmail.users.messages.list({
+async function fetchAndReconcileGmail() {
+  const QUERY =
+    'newer_than:365d (subject:(bill OR statement OR invoice OR receipt OR "payment due" OR due) OR has:attachment filename:pdf)';
+
+  try {
+    const listRes = await gapi.client.gmail.users.messages.list({
+      userId: "me",
+      q: QUERY,
+      maxResults: 100,
+      includeSpamTrash: true,
+    });
+
+    console.log("Gmail search query:", QUERY);
+    console.log("Gmail search results:", listRes.result);
+
+    const messages = listRes.result.messages || [];
+    if (!messages.length) {
+      alert(
+        "No matching emails found.\n\n" +
+          "Query used:\n" +
+          QUERY +
+          "\n\nOpen Console → see 'Gmail search results' for details."
+      );
+      return;
+    }
+
+    const txs = [];
+
+    for (const msg of messages) {
+      const detail = await gapi.client.gmail.users.messages.get({
         userId: "me",
-        q: "subject:(bill OR statement OR payment due) newer_than:60d",
-        maxResults: 40,
+        id: msg.id,
+        format: "full",
       });
 
-      const messages = listRes.result.messages || [];
-      if (!messages.length) {
-        alert("No recent bill-like emails found in Gmail search.");
-        return;
+      const headers = detail.result.payload?.headers || [];
+      const getHeader = (name) => {
+        const h = headers.find((x) => x.name.toLowerCase() === name.toLowerCase());
+        return h ? h.value : "";
+      };
+
+      const subject = getHeader("Subject");
+      const from = getHeader("From");
+      const dateHeader = getHeader("Date");
+
+      let dateIso;
+      try {
+        dateIso = toISO(new Date(dateHeader));
+      } catch {
+        dateIso = toISO(today());
       }
 
-      const txs = [];
+      const snippet = detail.result.snippet || "";
+      const amt = extractAmount(subject + " " + snippet);
 
-      for (const msg of messages) {
-        const detail = await gapi.client.gmail.users.messages.get({
-          userId: "me",
-          id: msg.id,
-          format: "full",
-        });
+      if (!amt) continue;
 
-        const headers = detail.result.payload.headers || [];
-        const getHeader = (name) => {
-          const h = headers.find(
-            (x) => x.name.toLowerCase() === name.toLowerCase()
-          );
-          return h ? h.value : "";
-        };
-
-        const subject = getHeader("Subject");
-        const from = getHeader("From");
-        const dateHeader = getHeader("Date");
-        let dateIso;
-        try {
-          dateIso = toISO(new Date(dateHeader));
-        } catch {
-          dateIso = toISO(today());
-        }
-
-        const snippet = detail.result.snippet || "";
-        const bodyText = snippet;
-        const amt = extractAmount(subject + " " + bodyText);
-
-        if (!amt) continue;
-
-        txs.push({
-          date: dateIso,
-          description: subject || "Bill email",
-          amount: Math.abs(amt),
-          memo: `From Gmail (${from})`,
-        });
-      }
-
-      if (!txs.length) {
-        alert("Scanned Gmail but could not find dollar amounts to match.");
-        return;
-      }
-
-      const matched = reconcileTransactions(txs);
-      alert(`Scanned ${txs.length} Gmail emails and reconciled ${matched} bills.`);
-    } catch (e) {
-      console.error("Gmail import error", e);
-      alert("Gmail import failed. See browser console for details.");
+      txs.push({
+        date: dateIso,
+        description: subject || "Bill email",
+        amount: Math.abs(amt),
+        memo: `From Gmail (${from})`,
+      });
     }
+
+    if (!txs.length) {
+      alert(
+        "Found emails, but couldn't extract dollar amounts from subject/snippet.\n\n" +
+          "Tip: many bills hide the amount in the email body or PDF."
+      );
+      return;
+    }
+
+    const matched = reconcileTransactions(txs);
+    alert(`Scanned ${messages.length} emails; extracted ${txs.length} amounts; reconciled ${matched} bills.`);
+  } catch (e) {
+    console.error("Gmail import error", e);
+    alert("Gmail import failed. See browser console for details.");
   }
+}
+
 
 
 
