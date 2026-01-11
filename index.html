@@ -1,293 +1,205 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bills & Budget — Single-File App</title>
+  <title>Bills & Budget</title>
   <style>
     :root{
-      --bg:#f8fafc; --card:#ffffff; --muted:#f1f5f9; --text:#0f172a; --sub:#475569;
-      --ok:#16a34a; --warn:#ca8a04; --bad:#dc2626; --accent:#0ea5e9; --border:#e5e7eb
+      --mx: 1200px;
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #e5e7eb;
+      --brand: #0ea5e9;
+      --chip: #eef2ff;
     }
     *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    header{position:sticky;top:0;background:linear-gradient(180deg,#ffffff,#fffffff2);border-bottom:1px solid var(--border);padding:12px 16px;z-index:10}
-    h1{margin:0;font-size:18px} .sub{color:var(--sub)}
-    main{max-width:1200px;margin:20px auto;padding:0 16px;display:grid;gap:16px;grid-template-columns:1fr}
-    @media(min-width:1000px){main{grid-template-columns:320px 1fr}}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 4px 16px #0000000f}
-    .card h2{margin:0;font-size:16px;padding:12px 14px;border-bottom:1px solid var(--border)}
-    .pad{padding:12px 14px}
-    label{display:block;margin:10px 0 4px;color:#334155}
-    input,select,textarea{width:100%;padding:9px 10px;border-radius:10px;border:1px solid #cbd5e1;background:#ffffff;color:var(--text)}
-    button{background:var(--accent);color:#ffffff;border:0;padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
-    button.ghost{background:#ffffff;color:var(--text);border:1px solid var(--border)}
-    button.destr{background:var(--bad);color:#fff}
-    .row{display:grid;gap:10px;grid-template-columns:1fr 1fr}
-    .row3{display:grid;gap:10px;grid-template-columns:1fr 1fr 1fr}
-    table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{position:sticky;top:0;background:var(--muted);border-bottom:1px solid var(--border);padding:10px 8px;text-align:left;font-weight:600}
-    tbody td{border-bottom:1px solid var(--border);padding:8px}
-    .chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
-    .ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
-    .warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
-    .bad{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
-    .upc{background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe}
-    .toolbar{display:flex;gap:8px;flex-wrap:wrap}
-    .flex{display:flex;gap:10px;align-items:center}
-    .right{margin-left:auto}
-    .muted{color:#64748b}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
-    .kpi{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-    @media(min-width:720px){.kpi{grid-template-columns:repeat(4,1fr)}}
-    .k{background:#ffffff;border:1px solid var(--border);border-radius:12px;padding:12px}
-    .k strong{display:block;font-size:20px}
-    .help{font-size:12px;color:#64748b;margin-top:6px}
-    .hidden{display:none}
+    html,body{height:100%}
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, 'Noto Sans', sans-serif; line-height:1.5; color:var(--ink); background:var(--bg); margin:0}
+    header, main{max-width:var(--mx); margin:0 auto; padding:16px}
+    h1{font-size:1.75rem; margin:8px 0}
+    h2{font-size:1.25rem; margin:16px 0 8px}
+    .muted{color:var(--muted)}
+    .mono{font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1}
+    .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; overflow:hidden}
+    .pad{padding:16px}
+    .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .toolbar .right{margin-left:auto}
+    input, select, button, textarea{font:inherit}
+    input, select, textarea{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#fff}
+    textarea{min-height:88px}
+    label{display:block; font-size:.9rem; margin-bottom:6px; color:var(--muted)}
+    .row{display:grid; grid-template-columns: 1fr 1fr; gap:12px}
+    @media (max-width: 720px){ .row{grid-template-columns: 1fr} }
+    button{border:0; border-radius:12px; padding:10px 14px; background:#111827; color:#fff; cursor:pointer}
+    button.ghost{background:transparent; color:#111827; border:1px solid var(--line)}
+    button.destr{background:#ef4444}
+    .help{font-size:.85rem; color:var(--muted)}
+
+    table{width:100%; border-collapse:separate; border-spacing:0;}
+    th, td{padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top}
+    th{font-weight:600; text-align:left; color:#111827; background:#f8fafc}
+    tbody tr:hover{background:#fafafa}
+
+    .kpi{display:grid; grid-template-columns: repeat(4, 1fr); gap:12px}
+    @media (max-width: 960px){ .kpi{grid-template-columns: 1fr 1fr} }
+    .k{border:1px solid var(--line); border-radius:16px; padding:12px}
+    .k strong{font-size:1.25rem}
+
+    .chip{display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size:.8rem}
+    .chip.over{background:#fee2e2; color:#991b1b}
+    .chip.due{background:#fef9c3; color:#854d0e}
+    .chip.ok{background:#dcfce7; color:#065f46}
+
+    dialog{border:1px solid var(--line); border-radius:16px; padding:0; max-width:720px}
+    dialog .card{border:0}
+
+    /* Welcome / landing styling */
+    #welcome{min-height:100vh; display:block; flex-direction:column; gap:20px; background:linear-gradient(180deg,#f8fafc,#ffffff 40%,#f8fafc)}
+    .hero{padding:48px 16px 8px; text-align:center}
+    .hero h1{font-size:32px; margin:0}
+    .hero p.sub{color:#475569; margin:8px 0 0}
+    .welcome-wrap{max-width:1000px; margin:0 auto; padding:0 16px 32px; display:grid; gap:16px; grid-template-columns:1fr}
+    @media(min-width:960px){.welcome-wrap{grid-template-columns:1.2fr .8fr}}
+    .welcome-card{border-radius:16px}
+    .welcome-card .pad{padding:16px}
+    .feature{background:#ffffff; border:1px solid #e5e7eb; border-radius:14px; padding:12px}
+    .feature h3{margin:0 0 6px; font-size:15px}
+    .hero .logo{display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:14px; background:#0ea5e9; color:#fff; margin-bottom:12px; font-weight:800}
+
+    /* AUTH GATING */
+    #appShell{display:none !important}
+    body.auth #appShell{display:block !important}
+    body.auth #welcome{display:none !important}
+    .hidden{display:none!important}
+  table.compact th, table.compact td{padding:4px 6px;font-size:12px;line-height:1.1}
+  tr.currentRow{background:#ecfdf5}
+  tr.pastDueRow{background:#fef2f2}
+  .currentNote{font-size:.78rem;color:#166534}
+
   </style>
   <style>
-  /* Welcome / landing styling */
-  #welcome{min-height:100vh;display:flex;flex-direction:column;gap:20px;background:linear-gradient(180deg,#f8fafc,#ffffff 40%,#f8fafc);}
-  .hero{padding:48px 16px 8px;text-align:center}
-  .hero h1{font-size:32px;margin:0}
-  .hero p.sub{color:#475569;margin:8px 0 0}
-  .welcome-wrap{max-width:1000px;margin:0 auto;padding:0 16px 32px;display:grid;gap:16px;grid-template-columns:1fr}
-  @media(min-width:960px){.welcome-wrap{grid-template-columns:1.2fr .8fr}}
-  .welcome-card{border-radius:16px}
-  .welcome-card .pad{padding:16px}
-  .feature{background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;padding:12px}
-  .feature h3{margin:0 0 6px;font-size:15px}
-  .hero .logo{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:14px;background:#0ea5e9;color:#fff;margin-bottom:12px;font-weight:800}
+    button.mini{padding:6px 10px; font-size:.85rem}
+    .rowActions{flex-wrap:nowrap; gap:6px}
+    @media (max-width:720px){ .rowActions{flex-wrap:wrap} }
   </style>
-
-  <!-- Google Identity & Gmail API -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://apis.google.com/js/api.js" async defer></script>
-
-  <!-- Plaid Link SDK -->
+  <!-- Plaid Link SDK (optional) -->
   <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 </head>
 <body>
 
-<section id="welcome" class="welcome">
-  <div class="hero">
-    <div class="logo">BB</div>
-    <h1>Bills & Budget</h1>
-    <p class="sub">One place for household & business bills — with profiles, trends, and smart reconciliation.</p>
-  </div>
-  <div class="welcome-wrap">
-    <div class="card welcome-card">
-      <h2 style="padding:12px 14px;margin:0;border-bottom:1px solid #e5e7eb">Sign in</h2>
-      <div class="pad">
-        <div class="row">
-          <div>
-            <label>Name</label>
-            <input id="wName" placeholder="e.g., Ben" />
-          </div>
-          <div>
-            <label>Password</label>
-            <input id="wPass" type="password" placeholder="••••••••" />
-          </div>
-        </div>
-        <div class="toolbar" style="margin-top:10px">
-          <button id="wLogin">Log in</button>
-          <button class="ghost" id="wCreate">Create profile</button>
-        </div>
-        <div class="help" style="margin-top:8px">
-          Profiles are stored locally on this browser. Passwords are plain text for now; data is not end-to-end encrypted.
-        </div>
-      </div>
+  <!-- Landing / Welcome -->
+  <section id="welcome">
+    <div class="hero">
+      <div class="logo">BB</div>
+      <h1>Bills & Budget</h1>
+      <p class="sub">One place for household & business bills — profiles, trends, and smart reconciliation.</p>
     </div>
-
-    <div style="display:grid;gap:12px;height:max-content">
-      <div class="feature"><h3> 💳 Auto-reconcile</h3><div class="muted">CSV & Plaid sync match payments to bills automatically.</div></div>
-      <div class="feature"><h3> 📈 Trends</h3><div class="muted">See category & subcategory spend over time; export when needed.</div></div>
-      <div class="feature"><h3> 📨 Email bill capture</h3><div class="muted">Parse statements from Gmail/Outlook to update due amounts & dates.</div></div>
-      <div class="feature"><h3> 👥 Multiple profiles</h3><div class="muted">Separate spaces for home, firm, or team members.</div></div>
-    </div>
-  </div>
-</section>
-
-<div id="appShell" class="hidden">
-  <header>
-    <div class="flex">
-      <h1>Bills & Budget <span class="sub">— Local, private, single-file app</span></h1>
-      <div class="right toolbar">
-        <button id="btnBackup">Backup JSON</button>
-        <label class="ghost" style="display:inline-block">
-          <input id="restoreFile" type="file" accept="application/json" class="hidden" />
-          <span class="ghost" style="padding:10px 14px;border-radius:12px;border:1px solid #334155;cursor:pointer;display:inline-block">Restore</span>
-        </label>
-        <button class="ghost" id="btnProfile">Profile</button>
-        <button class="ghost" id="btnICS">Download .ics</button>
-      </div>
-    </div>
-  </header>
-
-  <main>
-    <!-- Left: Add/Edit bill, Filters, Import -->
-    <section class="card">
-      <h2>Add / Edit Bill</h2>
-      <div class="pad">
-        <form id="billForm">
-          <input type="hidden" id="billId" />
-          <label>Bill name / Payee</label>
-          <input id="name" required placeholder="e.g., Comcast, Mortgage, LawPay subscription" />
-
+    <div class="welcome-wrap">
+      <div class="card welcome-card">
+        <h2 style="padding:12px 14px; margin:0; border-bottom:1px solid var(--line)">Sign in</h2>
+        <div class="pad">
           <div class="row">
             <div>
-              <label>Category</label>
-              <select id="category">
-                <option>Household</option>
-                <option>Business</option>
-              </select>
+              <label>Name</label>
+              <input id="wName" placeholder="e.g., Ben" />
             </div>
             <div>
-              <label>Amount (typical)</label>
-              <input id="amount" type="number" step="0.01" min="0" placeholder="e.g., 129.99" />
+              <label>Password</label>
+              <input id="wPass" type="password" placeholder="••••••••" />
             </div>
           </div>
-
-          <div class="row3">
-            <div>
-              <label>Frequency</label>
-              <select id="frequency">
-                <option value="monthly">Monthly</option>
-                <option value="weekly">Weekly</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="yearly">Yearly</option>
-                <option value="custom">Custom (days)</option>
-              </select>
-            </div>
-            <div>
-              <label>Anchor due date (first / next due)</label>
-              <input id="anchor" type="date" />
-            </div>
-            <div id="customDaysWrap" class="hidden">
-              <label>Every N days</label>
-              <input id="customDays" type="number" min="1" step="1" placeholder="e.g., 45" />
-            </div>
-          </div>
-
-          <div class="row">
-            <div>
-              <label>Autopay?</label>
-              <select id="autopay">
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-              </select>
-              <div class="help">If yes, status will flip to <em>Expected Paid</em> on the due date unless reconciled.</div>
-            </div>
-            <div>
-              <label>Account (optional)</label>
-              <input id="account" placeholder="e.g., Chase Checking, AmEx" />
-            </div>
-          </div>
-
-          <!-- NEW: Overdue & Balance fields -->
-          <div class="row">
-            <div>
-              <label>Overdue amount</label>
-              <input id="overdue" type="number" step="0.01" min="0" placeholder="0.00" />
-            </div>
-            <div>
-              <label>Current balance</label>
-              <input id="balance" type="number" step="0.01" min="0" placeholder="0.00" />
-            </div>
-          </div>
-
-          <label>Notes / matching keywords (comma-separated)</label>
-          <input id="notes" placeholder="e.g., 'XFINITY, COMCAST, 1234' for auto-matching" />
-
           <div class="toolbar" style="margin-top:10px">
-            <button type="submit">Save Bill</button>
-            <button type="button" class="ghost" id="resetForm">Reset</button>
-            <button type="button" class="destr right" id="deleteBill" title="Delete selected bill">Delete</button>
+            <button id="wLogin">Log in</button>
+            <button class="ghost" id="wCreate">Create profile</button>
+            <button class="ghost" id="wForgot">Forgot password?</button>
           </div>
-        </form>
-
-        <hr style="border-color:#1f2937;margin:16px 0">
-
-        <h3 style="margin:0 0 8px 0">Filters & Data</h3>
-        <div class="toolbar">
-          <select id="filterCat">
-            <option value="all">All Categories</option>
-            <option value="Household">Household</option>
-            <option value="Business">Business</option>
-          </select>
-          <select id="filterStatus">
-            <option value="any">Any status</option>
-            <option value="overdue">Overdue</option>
-            <option value="due">Due (7 days)</option>
-            <option value="upcoming">Upcoming</option>
-            <option value="paid">Paid (this period)</option>
-          </select>
-          <button class="ghost" id="btnExportCSV">Export CSV</button>
-<button
-  class="ghost"
-  id="btnGmailImport"
-  onclick="gmailImportBills()"
->
-  Import from Gmail
-</button>
-
-
-        </div>
-
-        <div style="margin-top:12px">
-          <label>Import bank CSV (date, description, amount[, account])</label>
-          <input id="csvFile" type="file" accept=".csv" />
-          <div class="help">We scan newly imported transactions to auto-reconcile bills by amount ±$1 and keywords.</div>
-        </div>
-
-        <div style="margin-top:12px">
-          <label>Bank sync (Plaid)</label>
-          <div class="toolbar">
-            <button id="btnPlaidLink">Connect bank (Plaid)</button>
-            <label style="display:inline-flex;align-items:center;gap:6px">Since days
-              <input id="plaidSince" type="number" min="1" value="30" style="width:100px" />
-            </label>
-            <button class="ghost" id="btnPlaidSync">Sync transactions</button>
-          </div>
-          <div class="help" id="plaidStatus">Not linked</div>
+          <div class="help" style="margin-top:8px">Profiles are stored locally on this browser. Passwords are salted+hashed; data is not end‑to‑end encrypted in this version.</div>
         </div>
       </div>
-    </section>
 
-    <!-- Right: KPIs + Bills table -->
-    <section class="card">
+      <div style="display:grid; gap:12px; height:max-content">
+        <div class="feature"><h3>💳 Auto-reconcile</h3><div class="muted">CSV & Plaid sync match payments to bills automatically.</div></div>
+        <div class="feature"><h3>📈 Trends</h3><div class="muted">See category & subcategory spend over time; export when needed.</div></div>
+        <div class="feature"><h3>📨 Email bill capture</h3><div class="muted">Parse statements from Gmail/Outlook to update due amounts & dates.</div></div>
+        <div class="feature"><h3>👥 Multiple profiles</h3><div class="muted">Separate spaces for home, firm, or team members.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- App shell (hidden until login) -->
+  <div id="appShell">
+    <header class="toolbar">
+      <div style="display:flex; align-items:center; gap:10px">
+        <div class="logo" style="width:36px;height:36px;border-radius:10px;background:#0ea5e9;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">BB</div>
+        <div>
+          <h1 style="margin:0">Bills & Budget</h1>
+          <div class="help" id="profileBadge">Profile</div>
+        </div>
+      </div>
+      <div class="right toolbar">
+        <button class="ghost" id="btnDash">Dashboard</button>
+        <button class="ghost" id="btnPayLog">Pay Log</button>
+        <button class="ghost" id="btnSummary">Summary</button>
+        <button class="ghost" id="btnCharts">Charts</button>
+        <select id="filterCat" title="Filter category">
+          <option value="all">All</option>
+          <option value="Household">Household</option>
+          <option value="Business">Business</option>
+        </select>
+        <select id="filterStatus" title="Status">
+          <option value="any">Any status</option>
+          <option value="overdue">Overdue</option>
+          <option value="due">Due</option>
+          <option value="future">Future</option>
+        </select>
+        <button class="ghost" id="btnProfile">Profile</button>
+        <button class="ghost" id="addSample">Add recommended bills</button>
+        <button class="ghost" id="clearAll">Reset app</button>
+      </div>
+    </header>
+
+    <main>
+      <div id="dashboardSection">
       <h2>Overview</h2>
-      <div class="pad">
-        <div class="kpi" id="kpis">
-          <div class="k"><div class="muted">Overdue</div><strong id="kOverdue">0</strong></div>
-          <div class="k"><div class="muted">Due in 7 days</div><strong id="kDue">$0.00</strong></div>
-          <div class="k"><div class="muted">Month total</div><strong id="kMonth">$0.00</strong></div>
-          <div class="k"><div class="muted">Reconciled this month</div><strong id="kPaid">$0.00</strong></div>
-          <div class="k"><div class="muted">Total overdue ($)</div><strong id="kTotOverdue">$0.00</strong></div>
-          <div class="k"><div class="muted">Total balance ($)</div><strong id="kTotBalance">$0.00</strong></div>
-        </div>
+      <div class="kpi" id="kpis">
+        <div class="k"><div class="muted">Overdue</div><strong id="kOverdue">0</strong></div>
+        <div class="k"><div class="muted">Due in 7 days</div><strong id="kDue">$0.00</strong></div>
+        <div class="k"><div class="muted">Month total</div><strong id="kMonth">$0.00</strong></div>
+        <div class="k"><div class="muted">Reconciled this month</div><strong id="kPaid">$0.00</strong></div>
+        <div class="k"><div class="muted">Total overdue ($)</div><strong id="kTotOverdue">$0.00</strong></div>
+        <div class="k"><div class="muted">Total balance ($)</div><strong id="kTotBalance">$0.00</strong></div>
       </div>
-      <h2 style="border-top:1px solid #374151">Bills</h2>
-      <div class="pad" style="padding-top:0">
-        <div class="toolbar" style="margin:10px 0">
-          <input id="search" placeholder="Search by name or note" />
-          <label style="display:inline-flex;align-items:center;gap:6px">
-            Sort
-            <select id="sortBy">
-              <option value="due">Due date</option>
-              <option value="amountDesc">Amount: High→Low</option>
-              <option value="amountAsc">Amount: Low→High</option>
-            </select>
-          </label>
-          <button class="ghost" id="addSample">Add sample data</button>
-          <button class="ghost" id="clearAll">Reset app</button>
-        </div>
-        <div style="max-height:60vh;overflow:auto;border:1px solid #334155;border-radius:12px">
+
+      <div class="pad"></div>
+
+      <div class="card" style="border-radius:16px">
+        <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Bills</h2>
+        <div class="pad">
+          <div class="toolbar" style="margin:10px 0">
+            <input id="search" placeholder="Search by name, subcategory, or note" />
+            <label style="display:inline-flex; align-items:center; gap:6px">Sort
+              <select id="sortBy">
+                <option value="due">Due date</option>
+                <option value="amountDesc">Amount: High→Low</option>
+                <option value="amountAsc">Amount: Low→High</option>
+              </select>
+            </label>
+            <label style="display:inline-flex; align-items:center; gap:6px">Monthly view
+              <input type="checkbox" id="viewMonthlyEq" />
+            </label>
+            <button id="btnAdd">Add bill</button>
+            <button class="ghost" id="btnExport">Export CSV</button>
+          </div>
+
           <table>
             <thead>
               <tr>
                 <th>Name</th>
                 <th>Cat.</th>
+                <th>Subcat.</th>
                 <th class="mono">Amount</th>
                 <th class="mono">Ovd.</th>
                 <th class="mono">Bal.</th>
@@ -298,195 +210,513 @@
             </thead>
             <tbody id="billRows"></tbody>
           </table>
-        </div>
-      </div>
-    </section>
-  </main>
-</div>
 
-<template id="rowTmpl">
-  <tr>
-    <td><strong class="nm"></strong><div class="muted mono kw"></div></td>
-    <td class="ct"></td>
-    <td class="am mono"></td>
-    <td class="ov mono"></td>
-    <td class="ba mono"></td>
-    <td class="du"></td>
-    <td class="st"></td>
-    <td>
-      <div class="toolbar">
-        <button class="ghost btnEdit">Edit</button>
-        <button class="ghost btnPay">Mark Paid</button>
-        <button class="ghost btnSkip" title="Skip this occurrence">Skip</button>
+          <template id="rowTmpl">
+            <tr>
+              <td><strong class="nm"></strong><div class="muted mono kw"></div><div class="muted mono currentNote cur"></div></td>
+              <td class="ct"></td>
+              <td class="sc"></td>
+              <td class="am mono"></td>
+              <td class="ov mono"></td>
+              <td class="ba mono"></td>
+              <td class="du"></td>
+              <td class="st"></td>
+              <td>
+                <div class="toolbar rowActions">
+                  <button class="ghost mini btnEdit">Edit</button>
+                  <button class="ghost mini btnPortal">Portal</button>
+                  <button class="ghost mini btnCurrent">Current</button>
+                  <button class="ghost mini btnPartial">Partial payment</button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </div>
       </div>
-    </td>
-  </tr>
-</template>
 
-<dialog id="payDlg" style="border:0;border-radius:14px;padding:0;max-width:420px;width:calc(100% - 24px)">
-  <div class="card" style="border:0">
-    <h2 style="border:0">Mark Paid</h2>
-    <div class="pad">
-      <div class="row">
-        <div>
-          <label>Paid date</label>
-          <input id="paidDate" type="date" />
-        </div>
-        <div>
-          <label>Amount</label>
-          <input id="paidAmount" type="number" step="0.01" />
+      <div class="pad"></div>
+
+      <div class="card" style="border-radius:16px">
+        <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Data sources</h2>
+        <div class="pad">
+          <div style="margin-top:12px">
+            <label>Import bank CSV (date, description, amount[, account])</label>
+            <input id="csvFile" type="file" accept=".csv" />
+            <div class="help">We scan newly imported transactions to auto‑reconcile bills by amount ±$1 and keywords.</div>
+          </div>
+
+          <div style="margin-top:12px">
+            <label>Bank sync (Plaid)</label>
+            <div class="toolbar">
+              <button id="btnPlaidLink">Connect bank (Plaid)</button>
+              <label style="display:inline-flex;align-items:center;gap:6px">Since days
+                <input id="plaidSince" type="number" min="1" value="30" style="width:100px" />
+              </label>
+              <button class="ghost" id="btnPlaidSync">Sync transactions</button>
+            </div>
+            <div class="help" id="plaidStatus">Not linked</div>
+          </div>
+
+          <div style="margin-top:12px">
+            <label>Email bill capture</label>
+            <div class="toolbar">
+              <button id="btnGmail">Connect Gmail</button>
+              <button class="ghost" id="btnOutlook">Connect Outlook</button>
+              <label style="display:inline-flex;align-items:center;gap:6px">Since days
+                <input id="mailSince" type="number" min="1" value="45" style="width:100px" />
+              </label>
+              <button class="ghost" id="btnMailScan">Scan inbox</button>
+            </div>
+            <div class="help" id="mailStatus">Not connected</div>
+          </div>
         </div>
       </div>
-      <label>Memo</label>
-      <input id="paidMemo" placeholder="Check #, confirmation #, etc." />
-      <div class="toolbar" style="margin-top:12px;align-items:center;justify-content:space-between">
-        <label style="display:inline-flex;align-items:center;gap:6px"><input id="paidReduceBalance" type="checkbox"> Also reduce balance</label>
-        <div class="right" style="display:flex;gap:8px">
+
+          </div>
+
+      <section id="payLogSection" class="card hidden">
+        <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Pay Log</h2>
+        <div class="pad">
+          <table class="compact">
+            <thead><tr><th>Date</th><th>Bill</th><th class="mono">Amount</th><th>Memo</th></tr></thead>
+            <tbody id="payLogRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="pad"></div>
+
+      <section id="summarySection" class="card hidden">
+        <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Summary</h2>
+        <div class="pad">
+          <div class="toolbar" style="margin-bottom:8px">
+            <label style="display:inline-flex;align-items:center;gap:6px">Category
+              <select id="summaryCat">
+                <option value="all">All</option>
+                <option value="Household">Household</option>
+                <option value="Business">Business</option>
+              </select>
+            </label>
+            <div class="help">Click a column header to sort (toggles asc/desc).</div>
+          </div>
+          <table class="compact" id="summaryTable">
+            <thead>
+              <tr>
+                <th data-key="name">Name</th>
+                <th data-key="category">Cat.</th>
+                <th data-key="subcategory">Subcat.</th>
+                <th data-key="monthly" class="mono">Monthly</th>
+                <th data-key="overdue" class="mono">Overdue</th>
+                <th data-key="balance" class="mono">Balance</th>
+                <th data-key="due">Due</th>
+                <th data-key="status">Status</th>
+              </tr>
+            </thead>
+            <tbody id="summaryRows"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" class="mono" style="text-align:right"><strong>Totals:</strong></td>
+                <td class="mono" id="sumMonthly">$0.00</td>
+                <td class="mono" id="sumOverdue">$0.00</td>
+                <td class="mono" id="sumBalance">$0.00</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+          <div class="help">Rows in green are "current" (no overdue/balance and not past due). Rows in red are past due.</div>
+        </div>
+      </section>
+
+      <div class="pad"></div>
+
+      <section id="chartsSection" class="card hidden">
+        <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Charts</h2>
+        <div class="pad">
+          <div class="toolbar" style="margin-bottom:8px">
+            <label style="display:inline-flex;align-items:center;gap:6px">Metric
+              <select id="chartMetric"><option value="balance">Balance</option><option value="overdue">Overdue</option></select>
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:6px">Category
+              <select id="chartCat">
+                <option value="all">All</option>
+                <option value="Household">Household</option>
+                <option value="Business">Business</option>
+              </select>
+            </label>
+            <button class="ghost" id="btnChartRefresh">Refresh</button>
+          </div>
+          <canvas id="chartCanvas" style="width:100%; height:480px"></canvas>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Bill dialog -->
+  <dialog id="billDlg">
+    <div class="card">
+      <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Bill</h2>
+      <div class="pad">
+        <div class="row">
+          <div>
+            <label>Name</label>
+            <input id="name" placeholder="e.g., Spectrum Internet" />
+          </div>
+          <div>
+            <label>Category</label>
+            <select id="category">
+              <option>Household</option>
+              <option>Business</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Subcategory</label>
+            <input id="subcategory" placeholder="e.g., Internet / Utilities / Phone" />
+          </div>
+          <div>
+            <label>Amount (typical)</label>
+            <input id="amount" type="number" step="0.01" min="0" placeholder="129.99" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Frequency</label>
+            <select id="frequency">
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="weekly">Weekly</option>
+              <option value="custom">Custom (days)</option>
+            </select>
+          </div>
+          <div>
+            <label>Anchor (next due)</label>
+            <input id="anchor" type="date" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Custom cycle (days)</label>
+            <input id="customDays" type="number" min="1" placeholder="30" />
+          </div>
+          <div>
+            <label>Autopay?</label>
+            <select id="autopay"><option value="no">No</option><option value="yes">Yes</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Overdue amount</label>
+            <input id="overdue" type="number" step="0.01" min="0" placeholder="0.00" />
+          </div>
+          <div>
+            <label>Current balance</label>
+            <input id="balance" type="number" step="0.01" min="0" placeholder="0.00" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Account (optional)</label>
+            <input id="account" placeholder="e.g., Chase Checking, AmEx" />
+          </div>
+          <div>
+            <label>Notes</label>
+            <input id="notes" placeholder="keywords to help match bank/email, comma separated" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Portal URL</label>
+            <input id="portalUrl" type="url" placeholder="https://vendor-portal.example.com" />
+          </div>
+          <div></div>
+        </div>
+        <div class="toolbar" style="margin-top:12px">
+          <button id="saveBill">Save</button>
+          <button class="ghost" id="cancelBill">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Pay dialog -->
+  <dialog id="payDlg">
+    <div class="card">
+      <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Partial Payment</h2>
+      <div class="pad">
+        <div class="row">
+          <div>
+            <label>Date</label>
+            <input id="payDate" type="date" />
+          </div>
+          <div>
+            <label>Amount</label>
+            <input id="payAmt" type="number" step="0.01" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Memo</label>
+            <input id="payMemo" placeholder="optional" />
+          </div>
+          <div>
+            <label style="display:inline-flex; align-items:center; gap:6px; margin-top:26px"><input id="paidReduceBalance" type="checkbox" /> Also reduce balance</label>
+          </div>
+        </div>
+        <div class="toolbar" style="margin-top:12px; justify-content:flex-end">
           <button id="confirmPaid">Save</button>
           <button class="ghost" id="cancelPaid">Cancel</button>
         </div>
       </div>
     </div>
-  </div>
-</dialog>
+  </dialog>
 
-<!-- Profiles dialog -->
-<dialog id="authDlg" style="border:0;border-radius:14px;padding:0;max-width:520px;width:calc(100% - 24px)">
-  <div class="card" style="border:0">
-    <h2 style="border:0">Profiles</h2>
-    <div class="pad">
-      <div id="profileInfo" class="help">Current: Guest (no profile)</div>
-      <div class="row">
-        <div>
-          <label>Name</label>
-          <input id="profName" placeholder="e.g., Ben" />
+  <!-- Profiles dialog -->
+  <dialog id="authDlg">
+    <div class="card" style="border:0">
+      <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Profiles</h2>
+      <div class="pad">
+        <div id="profileInfo" class="help">Current: Guest (no profile)</div>
+        <div class="row">
+          <div>
+            <label>Name</label>
+            <input id="profName" placeholder="e.g., Ben" />
+          </div>
+          <div>
+            <label>Password</label>
+            <input id="profPass" type="password" placeholder="••••••••" />
+          </div>
         </div>
-        <div>
-          <label>Password</label>
-          <input id="profPass" type="password" placeholder="••••••••" />
+        <div class="toolbar" style="margin-top:8px">
+          <button id="btnCreateProfile">Create</button>
+          <button class="ghost" id="btnLoginProfile">Login</button>
+          <button class="ghost right" id="btnCloseAuth">Close</button>
         </div>
+        <div style="margin-top:10px">
+          <div class="muted">Existing profiles (click to fill):</div>
+          <div id="profilesList" class="toolbar" style="margin-top:6px; flex-wrap:wrap"></div>
+        </div>
+        <div class="toolbar" style="margin-top:10px">
+          <button id="btnSignOut" class="destr">Sign out</button>
+        </div>
+        <div class="help">Local-only in this version. Passwords are salted+hashed; data not end‑to‑end encrypted.</div>
       </div>
-      <div class="toolbar" style="margin-top:8px">
-        <button id="btnCreateProfile">Create</button>
-        <button class="ghost" id="btnLoginProfile">Login</button>
-        <button class="ghost right" id="btnCloseAuth">Close</button>
-      </div>
-      <div style="margin-top:10px">
-        <div class="muted">Existing profiles (click to fill):</div>
-        <div id="profilesList" class="toolbar" style="margin-top:6px;flex-wrap:wrap"></div>
-      </div>
-      <div class="toolbar" style="margin-top:10px">
-        <button id="btnSignOut" class="destr">Sign out</button>
-      </div>
-      <div class="help">Profiles are stored locally in this browser.</div>
     </div>
-  </div>
-</dialog>
+  </dialog>
 
-<script>
-  // ---------- Utilities ----------
-  const $ = sel => document.querySelector(sel);
-  const $$ = sel => Array.from(document.querySelectorAll(sel));
-  const fmtMoney = n => (n||0).toLocaleString(undefined,{style:'currency',currency:'USD'});
-  const today = () => new Date(new Date().toDateString());
-  const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x };
-  const addMonths = (d,n) => { const x=new Date(d); const day=x.getDate(); x.setMonth(x.getMonth()+n); if(x.getDate()<day){ x.setDate(0); } return x };
-  const addYears = (d,n) => { const x=new Date(d); x.setFullYear(x.getFullYear()+n); return x };
-  const toISO = d => new Date(d).toISOString().slice(0,10);
-  const near = (a,b,tol=1) => Math.abs((a||0)-(b||0)) <= tol;
-  const uid = () => Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+  <!-- Reset password dialog -->
+  <dialog id="resetDlg" style="border:0;border-radius:14px;padding:0;max-width:520px;width:calc(100% - 24px)">
+    <div class="card" style="border:0">
+      <h2 style="border:0">Reset password</h2>
+      <div class="pad">
+        <div class="row">
+          <div>
+            <label>Profile</label>
+            <select id="resetProfile"></select>
+          </div>
+          <div></div>
+        </div>
+        <div class="row">
+          <div>
+            <label>New password</label>
+            <input id="resetNewPass" type="password" />
+          </div>
+          <div>
+            <label>Confirm new password</label>
+            <input id="resetNewPass2" type="password" />
+          </div>
+        </div>
+        <div class="toolbar" style="margin-top:8px">
+          <button id="btnDoReset">Reset</button>
+          <button class="ghost" id="btnResetClose">Close</button>
+        </div>
+        <div class="help">Local-only reset: anyone with access to this browser can change these passwords.</div>
+      </div>
+    </div>
+  </dialog>
 
-  // Helper: pull a dollar amount from text like "$123.45" or "Amount due: 89.99"
-  const extractAmount = (text) => {
-    if (!text) return null;
-    const cleaned = text.replace(/,/g, '');
-    const m = cleaned.match(/\$?\s*([0-9]+(?:\.[0-9]{2})?)/);
-    return m ? parseFloat(m[1]) : null;
-  };
+  <script>
+  // ---------- Tiny helpers ----------
+  const $ = (sel)=>document.querySelector(sel);
+  const today = ()=>{ const d = new Date(); d.setHours(0,0,0,0); return d; };
+  const toISO = (d)=>{ if(!d) return ''; const x = (d instanceof Date)? d : new Date(d); const z = new Date(x.getTime()-x.getTimezoneOffset()*60000); return z.toISOString().slice(0,10); };
+  const addDays = (d, n)=>{ const x = new Date(d); x.setDate(x.getDate()+n); x.setHours(0,0,0,0); return x; };
+  const addMonths = (d, n)=>{ const x = new Date(d); const day=x.getDate(); x.setMonth(x.getMonth()+n); if(x.getDate()<day){ x.setDate(0); } x.setHours(0,0,0,0); return x; };
+  const addYears = (d, n)=>{ const x = new Date(d); x.setFullYear(x.getFullYear()+n); x.setHours(0,0,0,0); return x; };
+  const fmtMoney = (n)=> (n||0).toLocaleString(undefined,{style:'currency',currency:'USD'});
+  const uid = ()=> 'id_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(3);
+  const near = (a,b,eps)=> Math.abs(a-b) <= (eps||0);
 
-
-  // ---------- Gmail API (browser OAuth) ----------
-  const GMAIL_CLIENT_ID = "357681255004-sfm6p3fpvmt0dku8kn07nvjp7d6girjk.apps.googleusercontent.com";
-  const GMAIL_SCOPES = "https://www.googleapis.com/auth/gmail.readonly";
-
-  let gapiReady = false;
-  let gmailTokenClient = null;
-
-  function loadGmailClient() {
-    if (!window.gapi) {
-      setTimeout(loadGmailClient, 400);
-      return;
-    }
-    gapi.load("client", async () => {
-      try {
-        await gapi.client.init({
-          apiKey: "",
-          discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest"],
-        });
-        gapiReady = true;
-        console.log("Gmail client ready");
-      } catch (e) {
-        console.error("Error init Gmail client", e);
-      }
-    });
-  }
-
-  window.addEventListener("load", loadGmailClient);
-
-  // ---------- DB ----------
+  // ---------- Storage / DB ----------
+  let DB = { bills: [], txns: [] };
   const BASE_KEY = 'billDB_v1';
   let KEY = BASE_KEY;
   const PROFILES_KEY = 'bb_profiles_v1';
   const CURRENT_KEY = 'bb_current_profile';
-  let DB = { bills:[], txns:[] };
 
-  function loadDB(){
-    try{ DB = JSON.parse(localStorage.getItem(KEY)) || DB; }catch(e){}
+  function saveDB(){ localStorage.setItem(KEY, JSON.stringify(DB)); }
+  function loadDB(){ try{ DB = JSON.parse(localStorage.getItem(KEY)) || DB; }catch(e){}
     if(!DB.bills) DB.bills = [];
-    DB.bills.forEach(b=>{ if(b.overdue===undefined) b.overdue=0; if(b.balance===undefined) b.balance=0; });
+    DB.bills.forEach(b=>{ if(b.subcategory===undefined) b.subcategory=''; if(b.overdue===undefined) b.overdue=0; if(b.balance===undefined) b.balance=0; if(b.portalUrl===undefined) b.portalUrl=''; });
     renderAll();
   }
-  function saveDB(){ localStorage.setItem(KEY, JSON.stringify(DB)); }
 
-  // ---------- Scheduling ----------
-  function nextDueFrom(bill, fromDate){
-    const base = new Date(fromDate||today());
-    let due = bill.nextDue ? new Date(bill.nextDue) : (bill.anchor? new Date(bill.anchor) : today());
-    if(isNaN(due)) due = today();
-    const freq = bill.frequency||'monthly';
-    const step = () => {
-      if(freq==='weekly') due = addDays(due,7);
-      else if(freq==='monthly') due = addMonths(due,1);
-      else if(freq==='quarterly') due = addMonths(due,3);
-      else if(freq==='yearly') due = addYears(due,1);
-      else if(freq==='custom') due = addDays(due, Math.max(1, +bill.customDays||30));
-      else due = addMonths(due,1);
+  // ---------- Reset password helpers (local only) ----------
+  function openResetDlg(){
+    const sel=document.querySelector('#resetProfile'); if(!sel) return;
+    sel.innerHTML='';
+    const list=getProfiles();
+    if(!list.length){ alert('No profiles found. Create one first.'); return; }
+    list.forEach(p=>{ const o=document.createElement('option'); o.value=p.name; o.textContent=p.name; sel.appendChild(o); });
+    document.querySelector('#resetNewPass').value='';
+    document.querySelector('#resetNewPass2').value='';
+    document.querySelector('#resetDlg').showModal();
+  }
+  async function doReset(){
+    const name=(document.querySelector('#resetProfile').value||'').trim();
+    const n1=document.querySelector('#resetNewPass').value;
+    const n2=document.querySelector('#resetNewPass2').value;
+    if(!name){ alert('Choose a profile'); return; }
+    if(!n1 || n1!==n2){ alert('Enter matching new passwords'); return; }
+    const list=getProfiles();
+    const p=list.find(x=>x.name===name);
+    if(!p){ alert('Profile not found'); return; }
+    const salt=makeSalt();
+    const hash=await passHash(n1, salt);
+    p.salt=salt; p.hash=hash;
+    saveProfiles(list);
+    alert('Password reset. You can now log in.');
+    document.querySelector('#resetDlg').close();
+  }
+
+  // ---------- Profiles (local) ----------
+  function toB64(u){ let s=''; u.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
+  function fromB64(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
+  function makeSalt(len=16){ const u=new Uint8Array(len); if (crypto?.getRandomValues) crypto.getRandomValues(u); else for(let i=0;i<len;i++) u[i]=Math.random()*255; return toB64(u); }
+  async function passHash(password, saltB64){
+    try{
+      const te=new TextEncoder(); const salt=fromB64(saltB64); const pw=te.encode(password||'');
+      if (window.isSecureContext && crypto?.subtle?.digest){
+        const data=new Uint8Array(salt.length+pw.length); data.set(salt,0); data.set(pw,salt.length);
+        const buf=await crypto.subtle.digest('SHA-256', data); const arr=new Uint8Array(buf);
+        return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('');
+      } else {
+        // Fallback for file:// contexts
+        const s = atob(saltB64) + (password||''); let h = 0x811c9dc5>>>0;
+        for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
+        return h.toString(16).padStart(8,'0');
+      }
+    }catch(e){ console.error('passHash error', e); return '0'; }
+  }
+
+  function getProfiles(){ try{return JSON.parse(localStorage.getItem(PROFILES_KEY)||'[]')}catch(e){return []} }
+  function saveProfiles(list){ localStorage.setItem(PROFILES_KEY, JSON.stringify(list)); }
+  function getCurrentProfileId(){ return localStorage.getItem(CURRENT_KEY); }
+  function getCurrentProfile(){ const id=getCurrentProfileId(); if(!id) return null; return getProfiles().find(p=>p.id===id)||null; }
+  function profileKey(id){ return BASE_KEY+':'+id; }
+  function initProfiles(){ const pid=getCurrentProfileId(); KEY = pid? profileKey(pid) : BASE_KEY; }
+  function refreshProfileBadge(){ const p=getCurrentProfile(); $('#profileBadge').textContent = p? ('Profile: '+p.name) : 'Profile: Guest'; $('#btnProfile').textContent = p? ('Profile: '+p.name) : 'Profile'; }
+
+  async function createProfile(name, password){
+    name=(name||'').trim(); if(!name || !password){ alert('Enter name + password'); return; }
+    const list=getProfiles(); if(list.some(p=>p.name.toLowerCase()===name.toLowerCase())){ alert('Name already exists'); return; }
+    const salt=makeSalt(); const hash=await passHash(password, salt); const id=uid();
+    list.push({id,name,salt,hash,createdAt:new Date().toISOString()}); saveProfiles(list);
+    if(!localStorage.getItem(profileKey(id)) && localStorage.getItem(BASE_KEY)) localStorage.setItem(profileKey(id), localStorage.getItem(BASE_KEY));
+    localStorage.setItem(CURRENT_KEY, id); KEY = profileKey(id); loadDB(); refreshProfileBadge(); $('#authDlg').close();
+  }
+  async function loginProfile(name, password){
+    name=(name||'').trim(); const p=getProfiles().find(x=>x.name.toLowerCase()===name.toLowerCase()); if(!p){ alert('No such profile'); return; }
+    const hash=await passHash(password, p.salt); if(hash!==p.hash){ alert('Wrong password'); return; }
+    localStorage.setItem(CURRENT_KEY, p.id); KEY = profileKey(p.id); loadDB(); refreshProfileBadge(); $('#authDlg').close();
+  }
+  function signOutProfile(){ localStorage.removeItem(CURRENT_KEY); KEY = BASE_KEY; loadDB(); refreshProfileBadge(); document.body.classList.remove('auth'); $('#authDlg').close(); }
+  function openProfileDlg(){ const dlg=$('#authDlg'); const list=getProfiles(); const wrap=$('#profilesList'); if(wrap){wrap.innerHTML=''; list.forEach(p=>{const b=document.createElement('button'); b.className='ghost'; b.textContent=p.name; b.onclick=()=>{ $('#profName').value=p.name; $('#profPass').focus(); }; wrap.appendChild(b);});}
+    const cur=getCurrentProfile(); const info=$('#profileInfo'); if(info) info.textContent = cur? ('Current: '+cur.name) : 'Current: Guest (no profile)'; dlg.showModal(); }
+
+  // ---------- Auth gating (landing) ----------
+  (function(){
+    function loggedIn(){ return !!getCurrentProfileId(); }
+    function showApp(){ document.body.classList.add('auth'); }
+    function showWelcome(){ document.body.classList.remove('auth'); }
+    async function doCreate(e){ e?.preventDefault?.(); const n=$('#wName')?.value||''; const p=$('#wPass')?.value||''; await createProfile(n,p); showApp(); }
+    async function doLogin(e){ e?.preventDefault?.(); const n=$('#wName')?.value||''; const p=$('#wPass')?.value||''; await loginProfile(n,p); showApp(); }
+    document.addEventListener('DOMContentLoaded', ()=>{
+      $('#wCreate')?.addEventListener('click', doCreate);
+      $('#wLogin')?.addEventListener('click', doLogin);
+      $('#wPass')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ doLogin(e); } });
+      if (loggedIn()) showApp(); else showWelcome();
+    });
+    // ensure signout returns to welcome
+    const oldSO = window.signOutProfile; window.signOutProfile = function(){ try{localStorage.removeItem(CURRENT_KEY);}catch(e){} if(typeof oldSO==='function') oldSO(); document.body.classList.remove('auth'); };
+  })();
+
+  // ---------- Status & scheduling ----------
+  function nextDueFrom(b, fromDate){
+    let due = b.nextDue ? new Date(b.nextDue) : (b.anchor ? new Date(b.anchor) : today());
+    if (isNaN(due)) due = today();
+    const base = new Date(fromDate || today()); base.setHours(0,0,0,0);
+    const step = ()=>{
+      switch(b.frequency){
+        case 'weekly':    due = addDays(due, 7); break;
+        case 'monthly':   due = addMonths(due, 1); break;
+        case 'quarterly': due = addMonths(due, 3); break;
+        case 'yearly':    due = addYears(due, 1); break;
+        case 'custom':    due = addDays(due, Math.max(1, +b.customDays||30)); break;
+        default:          due = addMonths(due, 1); break;
+      }
     };
     while(due < base) step();
     return due;
   }
-
-  function periodKey(bill){
-    const due = nextDueFrom(bill);
-    return bill.frequency+':'+toISO(due);
   }
-
-  function statusFor(bill){
-    const due = nextDueFrom(bill);
+  function statusFor(b){
+    const due = nextDueFrom(b);
     const t = today();
-    const rec = DB.txns.find(tx => tx.billId===bill.id && tx.periodKey===periodKey(bill));
-    if(rec) return { code:'paid', label:'Paid', cls:'ok', due };
-    if(due < t) return { code:'overdue', label:'Overdue', cls:'bad', due };
-    if((due - t) / 86400000 <= 7) return { code:'due', label: bill.autopay==='yes' ? 'Expected Paid (autopay)' : 'Due soon', cls:'warn', due };
-    return { code:'upcoming', label:'Upcoming', cls:'upc', due };
+    if (due < t) return {code:'overdue', label:'Overdue', cls:'over', due};
+    if ((due - t)/86400000 <= 7) return {code:'due', label: b.autopay==='yes' ? 'Due soon (autopay)' : 'Due soon', cls:'due', due};
+    return {code:'future', label:'Future', cls:'ok', due};
+  }
+  function periodKey(b){ const due = nextDueFrom(b); return (b.frequency||'monthly') + ':' + toISO(due); }
+    else if ((due - t)/(86400000) <= 7) { code='due'; label='Due soon'; cls='due'; }
+    return {code, label, cls, due};
+  }
+  function periodKey(b){
+    const due = nextDueFrom(b);
+    return (b.frequency||'monthly') + ':' + toISO(due);
   }
 
-  // ---------- Render ----------
-  function renderAll(){
-    renderTable();
-    renderKPIs();
+  // ---------- Rendering ----------
+  function renderPayLog(){
+    const tbody=$('#payLogRows'); if(!tbody) return; tbody.innerHTML='';
+    const rows=[...DB.txns].sort((a,b)=> new Date(b.date)-new Date(a.date));
+    rows.forEach(tx=>{ const bill=DB.bills.find(bb=>bb.id===tx.billId); const tr=document.createElement('tr'); tr.innerHTML=`<td class="mono">${toISO(tx.date)}</td><td>${bill?bill.name:'(deleted bill)'}</td><td class="mono">${fmtMoney(+tx.amount||0)}</td><td>${tx.memo||''}</td>`; tbody.appendChild(tr); });
   }
-
+  function monthlyEq(b){ const amt=+b.amount||0; switch(b.frequency){ case 'yearly': return amt/12; case 'quarterly': return amt/3; case 'weekly': return amt*52/12; case 'custom': return amt*(30.4375/Math.max(1,+b.customDays||30)); default: return amt; } }
+  function renderChart(){
+    const canvas = $('#chartCanvas'); if(!canvas) return; const ctx = canvas.getContext('2d');
+    const metric = $('#chartMetric')?.value || 'balance';
+    const cat = $('#chartCat')?.value || 'all';
+    let list = DB.bills.filter(b=> (cat==='all' || b.category===cat)).map(b=>({ name: b.name||'', value: +b[metric]||0 })).filter(x=> x.value>0);
+    list.sort((a,b)=> b.value - a.value);
+    const wrap = canvas.parentElement; const width = Math.max(600, wrap.clientWidth-16); canvas.width = width; const barH=22, gap=8; const padL=180, padR=40, padT=20, padB=20; canvas.height = padT + padB + list.length*(barH+gap);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const max = Math.max(1, ...list.map(d=>d.value));
+    ctx.font = '12px system-ui'; ctx.textBaseline='middle';
+    list.forEach((row,i)=>{
+      const y = padT + i*(barH+gap);
+      const w = (width - padL - padR) * (row.value/max);
+      // track background
+      ctx.fillStyle = '#e5e7eb'; ctx.fillRect(padL, y, (width-padL-padR), barH);
+      // bar
+      ctx.fillStyle = '#0ea5e9'; ctx.fillRect(padL, y, w, barH);
+      // labels
+      ctx.fillStyle = '#111827'; ctx.fillText(row.name, 10, y + barH/2);
+      const val = fmtMoney(row.value);
+      ctx.fillText(val, padL + w + 6, y + barH/2);
+    });
+  }
   function renderKPIs(){
     const t = today();
     const catSel = $('#filterCat') ? $('#filterCat').value : 'all';
@@ -521,24 +751,72 @@
     $('#kDue').textContent = fmtMoney(dueAmt);
     $('#kMonth').textContent = fmtMoney(monthTotal);
     $('#kPaid').textContent = fmtMoney(paidTotal);
-    if($('#kTotOverdue')) $('#kTotOverdue').textContent = fmtMoney(totOverdue);
-    if($('#kTotBalance')) $('#kTotBalance').textContent = fmtMoney(totBalance);
+    $('#kTotOverdue').textContent = fmtMoney(totOverdue);
+    $('#kTotBalance').textContent = fmtMoney(totBalance);
+  }(){
+    const t = today();
+    const catSel = $('#filterCat') ? $('#filterCat').value : 'all';
+    const stSel = $('#filterStatus') ? $('#filterStatus').value : 'any';
+
+    let overdueCnt = 0, dueAmt = 0, monthTotal = 0, paidTotal = 0, totOverdue = 0, totBalance = 0;
+
+    const bills = DB.bills.filter(b=> (catSel==='all' || b.category===catSel));
+
+    bills.forEach(b=>{
+      const st = statusFor(b);
+      const amt = +b.amount||0;
+      const due = st.due;
+      if(stSel==='any' || st.code===stSel){
+        if(st.code==='overdue') overdueCnt++;
+        if(st.code==='due') dueAmt += amt;
+      }
+      if(due.getMonth()===t.getMonth() && due.getFullYear()===t.getFullYear()) monthTotal += amt;
+      totOverdue += (+b.overdue||0);
+      totBalance += (+b.balance||0);
+    });
+
+    DB.txns.forEach(tx=>{
+      const d = new Date(tx.date);
+      if(d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear()){
+        const b = DB.bills.find(bb=>bb.id===tx.billId);
+        if(b && (catSel==='all' || b.category===catSel)) paidTotal += (+tx.amount||0);
+      }
+    });
+
+    $('#kOverdue').textContent = overdueCnt;
+    $('#kDue').textContent = fmtMoney(dueAmt);
+    $('#kMonth').textContent = fmtMoney(monthTotal);
+    $('#kPaid').textContent = fmtMoney(paidTotal);
+    $('#kTotOverdue').textContent = fmtMoney(totOverdue);
+    $('#kTotBalance').textContent = fmtMoney(totBalance);
   }
 
   function renderTable(){
-    const tbody = $('#billRows');
-    tbody.innerHTML = '';
-    const q = ($('#search').value||'').toLowerCase();
-    const cat = $('#filterCat').value;
-    const stf = $('#filterStatus').value;
+    const tbody = $('#billRows'); if(!tbody) return; tbody.innerHTML='';
+    const q = ($('#search')?.value||'').toLowerCase();
+    const cat = $('#filterCat')?.value || 'all';
+    const stf = $('#filterStatus')?.value || 'any';
+    const sortBy = $('#sortBy')?.value || 'due';
+    const useMonthly = $('#viewMonthlyEq')?.checked || false;
+
+    const amountFor = (b)=>{
+      const amt = +b.amount||0;
+      if(!useMonthly) return amt;
+      switch(b.frequency){
+        case 'yearly': return amt/12;
+        case 'quarterly': return amt/3;
+        case 'weekly': return amt*52/12;
+        case 'custom': return amt * (30.4375 / Math.max(1, +b.customDays||30));
+        case 'monthly': default: return amt;
+      }
+    };
 
     DB.bills
-      .filter(b=>!q || (b.name||'').toLowerCase().includes(q) || (b.notes||'').toLowerCase().includes(q))
+      .filter(b=>!q || (b.name||'').toLowerCase().includes(q) || (b.subcategory||'').toLowerCase().includes(q) || (b.notes||'').toLowerCase().includes(q))
       .filter(b=>cat==='all' || b.category===cat)
       .sort((a,b)=>{
-        const sortBy = document.getElementById('sortBy')?.value || 'due';
-        if (sortBy === 'amountAsc')  return (+a.amount||0) - (+b.amount||0);
-        if (sortBy === 'amountDesc') return (+b.amount||0) - (+a.amount||0);
+        if(sortBy==='amountAsc') return amountFor(a) - amountFor(b);
+        if(sortBy==='amountDesc') return amountFor(b) - amountFor(a);
         return new Date(statusFor(a).due) - new Date(statusFor(b).due);
       })
       .forEach(bill=>{
@@ -547,241 +825,108 @@
         const tr = document.importNode($('#rowTmpl').content,true);
         tr.querySelector('.nm').textContent = bill.name||'';
         tr.querySelector('.kw').textContent = bill.notes||'';
+        tr.querySelector('.cur').textContent = bill.currentAsOf ? ('Current as of '+toISO(bill.currentAsOf)) : '';
         tr.querySelector('.ct').textContent = bill.category||'';
-        tr.querySelector('.am').textContent = fmtMoney(+bill.amount||0);
+        tr.querySelector('.sc').textContent = bill.subcategory||'';
+        tr.querySelector('.am').textContent = fmtMoney(amountFor(bill));
         tr.querySelector('.ov').textContent = fmtMoney(+bill.overdue||0);
         tr.querySelector('.ba').textContent = fmtMoney(+bill.balance||0);
         tr.querySelector('.du').textContent = toISO(st.due);
         const stEl = tr.querySelector('.st');
-        const span = document.createElement('span');
-        span.className = `chip ${st.cls}`; span.textContent = st.label; stEl.appendChild(span);
+        const span = document.createElement('span'); span.className = 'chip '+(st.cls); span.textContent = st.label; stEl.appendChild(span);
         tr.querySelector('.btnEdit').onclick = ()=> fillForm(bill);
-        tr.querySelector('.btnPay').onclick = ()=> openPay(bill);
-        tr.querySelector('.btnSkip').onclick = ()=> skipOnce(bill);
+        const pb = tr.querySelector('.btnPortal');
+        if(bill.portalUrl){ pb.onclick = ()=> window.open(bill.portalUrl, '_blank'); }
+        else { pb.disabled = true; pb.title = 'No portal URL set'; }
+        tr.querySelector('.btnCurrent').onclick = ()=> markCurrent(bill);
+        tr.querySelector('.btnPartial').onclick = ()=> openPartial(bill);
         tbody.appendChild(tr);
       });
   }
 
+  function renderAll(){ renderKPIs(); renderTable(); renderPayLog(); renderSummary(); if(!$('#chartsSection')?.classList.contains('hidden')) renderChart(); }
+
+  // ---------- Bill form ----------
+  let editingId = null;
   function fillForm(b){
-    $('#billId').value = b.id;
-    $('#name').value = b.name||'';
-    $('#category').value = b.category||'Household';
-    $('#amount').value = b.amount||'';
-    $('#overdue').value = (b.overdue!=null? b.overdue : '');
-    $('#balance').value = (b.balance!=null? b.balance : '');
-    $('#frequency').value = b.frequency||'monthly';
-    $('#anchor').value = b.anchor? toISO(b.anchor): '';
-    $('#customDays').value = b.customDays||'';
-    $('#autopay').value = b.autopay||'no';
-    $('#account').value = b.account||'';
-    $('#notes').value = b.notes||'';
-    toggleCustom();
+    editingId = b.id;
+    $('#name').value=b.name||'';
+    $('#category').value=b.category||'Household';
+    $('#subcategory').value=b.subcategory||'';
+    $('#amount').value=b.amount||'';
+    $('#frequency').value=b.frequency||'monthly';
+    $('#anchor').value=b.anchor||toISO(today());
+    $('#customDays').value=b.customDays||'';
+    $('#autopay').value=b.autopay||'no';
+    $('#account').value=b.account||'';
+    $('#notes').value=b.notes||'';
+    $('#portalUrl').value=b.portalUrl||'';
+    $('#overdue').value=(b.overdue!=null? b.overdue : '');
+    $('#balance').value=(b.balance!=null? b.balance : '');
+    $('#billDlg').showModal();
   }
+  function blankForm(){ editingId=null; ['name','subcategory','amount','anchor','customDays','account','notes','portalUrl','overdue','balance'].forEach(id=>{$('#'+id).value='';}); $('#category').value='Household'; $('#frequency').value='monthly'; $('#autopay').value='no'; $('#billDlg').showModal(); }
 
-  function resetForm(){ $('#billForm').reset(); $('#billId').value=''; toggleCustom(); }
-
-  function toggleCustom(){ $('#customDaysWrap').classList.toggle('hidden', $('#frequency').value!=='custom'); }
-
-  // ---------- Actions ----------
-  $('#frequency').addEventListener('change', toggleCustom);
-
-  $('#billForm').addEventListener('submit', e=>{
-    e.preventDefault();
-    const id = $('#billId').value || uid();
-    const bill = {
-      id,
-      name: $('#name').value.trim(),
-      category: $('#category').value,
-      amount: +$('#amount').value||0,
-      overdue: +$('#overdue').value||0,
-      balance: +$('#balance').value||0,
-      frequency: $('#frequency').value,
-      anchor: $('#anchor').value ? toISO($('#anchor').value) : toISO(today()),
-      customDays: +$('#customDays').value||'',
-      autopay: $('#autopay').value,
-      account: $('#account').value.trim(),
-      notes: $('#notes').value.trim(),
-      nextDue: undefined,
-      lastPaid: undefined
+  $('#saveBill').addEventListener('click', ()=>{
+    const b = {
+      id: editingId || uid(),
+      name: $('#name').value, category: $('#category').value, subcategory: $('#subcategory').value,
+      amount: +$('#amount').value||0, frequency: $('#frequency').value, anchor: $('#anchor').value||toISO(today()), customDays: +$('#customDays').value||0,
+      autopay: $('#autopay').value, account: $('#account').value, notes: $('#notes').value, portalUrl: ($('#portalUrl').value||'').trim(),
+      overdue: +$('#overdue').value||0, balance: +$('#balance').value||0
     };
-    const i = DB.bills.findIndex(b=>b.id===id);
-    if(i>-1) DB.bills[i]=bill; else DB.bills.push(bill);
-    saveDB(); renderAll(); resetForm();
+    const idx = DB.bills.findIndex(x=>x.id===b.id);
+    if(idx>=0) DB.bills[idx]=b; else DB.bills.push(b);
+    saveDB(); renderAll(); $('#billDlg').close();
   });
+  $('#cancelBill').addEventListener('click', ()=> $('#billDlg').close());
 
-  $('#resetForm').onclick = resetForm;
-
-  $('#deleteBill').onclick = ()=>{
-    const id = $('#billId').value; if(!id) return;
-    if(confirm('Delete this bill?')){
-      DB.bills = DB.bills.filter(b=>b.id!==id);
-      DB.txns = DB.txns.filter(t=>t.billId!==id);
-      saveDB(); renderAll(); resetForm();
-    }
-  };
-
-  function skipOnce(bill){
-    const st = statusFor(bill);
-    bill.nextDue = toISO(nextDueFrom(bill, addDays(st.due,1)));
+  // ---------- Payment flow ----------
+  let activeBill = null;
+  function openPartial(b){ activeBill = b; $('#payDate').value = toISO(today()); $('#payAmt').value = ''; $('#payMemo').value=''; $('#paidReduceBalance').checked=true; $('#payDlg').showModal(); }
+  function markCurrent(b){
+    const d = toISO(today());
+    const curDue = nextDueFrom(b);
+    DB.txns.push({ id: uid(), billId: b.id, date: d, amount: +b.amount||0, memo: 'Marked current', periodKey: periodKey(b) });
+    b.lastPaid = d;
+    b.nextDue = toISO(nextDueFrom(b, addDays(curDue,1)));
+    b.overdue = 0; b.balance = 0; b.currentAsOf = d;
+    saveDB(); renderAll();
+  });
+    b.lastPaid = d; b.nextDue = toISO(nextDueFrom(b, addDays(st.due,1)));
+    b.overdue = 0; b.balance = 0; b.currentAsOf = d;
     saveDB(); renderAll();
   }
-
-  // Paid dialog
-  let activeBill=null;
-  function openPay(b){
-    activeBill=b; $('#paidDate').value = toISO(today()); $('#paidAmount').value = b.amount||0; $('#paidMemo').value='';
-    $('#payDlg').showModal();
-  }
-  $('#cancelPaid').onclick = ()=> $('#payDlg').close();
-  $('#confirmPaid').onclick = ()=>{
-    if(!activeBill) return;
-    const d = $('#paidDate').value || toISO(today());
-    const amt = +$('#paidAmount').value||0;
-    const memo = $('#paidMemo').value||'';
-    const st = statusFor(activeBill);
+  $('#confirmPaid').addEventListener('click', ()=>{
+    if(!activeBill) return; const d=$('#payDate').value||toISO(today()); const amt= +$('#payAmt').value||0; const memo=$('#payMemo').value||'Partial payment';
     DB.txns.push({ id: uid(), billId: activeBill.id, date: d, amount: amt, memo, periodKey: periodKey(activeBill) });
     activeBill.lastPaid = d;
-    activeBill.nextDue = toISO(nextDueFrom(activeBill, addDays(st.due,1)));
     activeBill.overdue = Math.max(0, (+activeBill.overdue||0) - amt);
-    if(document.getElementById('paidReduceBalance')?.checked){
-      activeBill.balance = Math.max(0, (+activeBill.balance||0) - amt);
-    }
+    if($('#paidReduceBalance').checked){ activeBill.balance = Math.max(0, (+activeBill.balance||0) - amt); }
+    if((+activeBill.overdue||0)===0 && (+activeBill.balance||0)===0){ activeBill.currentAsOf = d; }
     saveDB(); renderAll(); $('#payDlg').close();
-  };
+  });
+  $('#cancelPaid').addEventListener('click', ()=> $('#payDlg').close());
 
-  // Filters/search
+  // ---------- Filters/search/sort ----------
   $('#search').addEventListener('input', renderTable);
   $('#filterCat').addEventListener('change', ()=>{ renderTable(); renderKPIs(); });
   $('#filterStatus').addEventListener('change', ()=>{ renderTable(); renderKPIs(); });
-  document.getElementById('sortBy')?.addEventListener('change', renderTable);
+  $('#sortBy').addEventListener('change', renderTable);
+  $('#viewMonthlyEq').addEventListener('change', renderTable);
+  $('#btnAdd').addEventListener('click', blankForm);
 
-  // Sample data
-  $('#addSample').onclick = ()=>{
-    if(!confirm('Insert sample bills?')) return;
-    const base = toISO(today());
-    const samples = [
-      {name:'Mortgage',category:'Household',amount:2100,frequency:'monthly',anchor:base,autopay:'yes',notes:'SERVICER, MORTGAGE'},
-      {name:'Comcast Internet',category:'Household',amount:89.99,frequency:'monthly',anchor:base,autopay:'yes',notes:'XFINITY, COMCAST'},
-      {name:'Electric (CenterPoint)',category:'Household',amount:145,frequency:'monthly',anchor:base,autopay:'no',notes:'CENTERPOINT, ELECTRIC'},
-      {name:'Phone (Sangoma Talk)',category:'Business',amount:60,frequency:'monthly',anchor:base,autopay:'yes',notes:'SANGOMA, PBXACT'},
-      {name:'LawPay',category:'Business',amount:20,frequency:'monthly',anchor:base,autopay:'yes',notes:'LAWPAY'}
-    ];
-    samples.forEach(s=> DB.bills.push({id:uid(),...s}));
-    saveDB(); renderAll();
-  };
-
-  // Reset app
-  $('#clearAll').onclick = ()=>{
-    if(confirm('This clears all data. Continue?')){ localStorage.removeItem(KEY); DB={bills:[],txns:[]}; renderAll(); resetForm(); }
-  };
-
-  // Export CSV of bills
-  $('#btnExportCSV').onclick = ()=>{
-    const rows = [['name','category','amount','frequency','anchor','autopay','account','notes']]
-      .concat(DB.bills.map(b=>[b.name,b.category,b.amount,b.frequency,b.anchor,b.autopay,b.account,b.notes]));
-    const csv = rows.map(r=>r.map(v=>`"${(v??'').toString().replaceAll('"','""')}"`).join(',')).join('\n');
-    download('bills.csv', csv, 'text/csv');
-  };
-
-  // Backup / Restore
-  $('#btnBackup').onclick = ()=> download('bills_backup.json', JSON.stringify(DB,null,2), 'application/json');
-  $('#restoreFile').addEventListener('change', async e=>{
-    const f=e.target.files[0]; if(!f) return; const txt=await f.text();
-    try{ const obj=JSON.parse(txt); if(!obj.bills||!obj.txns) throw 0; DB=obj; saveDB(); renderAll(); alert('Restored!'); }
-    catch(err){ alert('Invalid backup file'); }
-    e.target.value='';
-  });
-
-  // ICS calendar export
-  $('#btnICS').onclick = ()=>{
-    const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//BillsApp//EN'];
-    DB.bills.forEach(b=>{
-      const due = nextDueFrom(b);
-      const dt = toISO(due).replaceAll('-','');
-      const uidv = uid()+"@billsapp";
-      lines.push('BEGIN:VEVENT');
-      lines.push('UID:'+uidv);
-      lines.push('DTSTAMP:'+dt+'T120000Z');
-      lines.push('SUMMARY:'+escapeICS(`[Bill] ${b.name} — ${fmtMoney(+b.amount||0)}`));
-      lines.push('DESCRIPTION:'+escapeICS(b.notes||''));
-      lines.push('DTSTART;VALUE=DATE:'+dt);
-      const r = (b.frequency==='weekly')?'FREQ=WEEKLY':(b.frequency==='monthly')?'FREQ=MONTHLY':(b.frequency==='quarterly')?'FREQ=MONTHLY;INTERVAL=3':(b.frequency==='yearly')?'FREQ=YEARLY':(b.frequency==='custom')?`FREQ=DAILY;INTERVAL=${Math.max(1,+b.customDays||30)}`:'';
-      if(r) lines.push('RRULE:'+r);
-      lines.push('END:VEVENT');
-    });
-    lines.push('END:VCALENDAR');
-    download('bills.ics', lines.join('\r\n'), 'text/calendar');
-  };
-
-  function escapeICS(s){ return (s||'').replace(/[\\,;]/g, m=>'\\'+m).replace(/\n/g,'\\n'); }
-
-  function download(name, content, mime){
-    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type:mime})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
+  // ---------- CSV import + auto-reconcile ----------
+  function parseCSV(txt){
+    const rows = txt.split(/\r?\n/).map(l=>l.split(','));
+    return rows.filter(r=>r.length && r.some(c=>c!==''));
   }
-
-  // CSV import + auto-reconcile
-  $('#csvFile').addEventListener('change', async e=>{
-    const f=e.target.files[0]; if(!f) return; const txt=await f.text();
-    const rows=parseCSV(txt);
-    const idx = indexCols(rows[0]);
-    const newTx=[]; for(let i=1;i<rows.length;i++){
-      const r=rows[i]; if(!r || !r.length) continue;
-      const date=r[idx.date]||r[idx.Date]||r[0];
-      const desc=r[idx.description]||r[idx.Description]||r[1]||'';
-      let amt=r[idx.amount]||r[idx.Amount]||r[2]||'0';
-      amt = +String(amt).replace(/[^-\d.]/g,'');
-      const account=r[idx.account]||r[idx.Account]||'';
-      newTx.push({id:uid(),date:toISO(date),description:desc,amount:amt,account});
-    }
-    const before = DB.txns.length;
-    newTx.forEach(tx=>{
-      const tdate = new Date(tx.date);
-      const candidates = DB.bills.map(b=>({b, st: statusFor(b)})).filter(x=>{
-        const due=x.st.due; const days=Math.abs((due - tdate)/86400000);
-        const kw=(x.b.notes+' '+x.b.name).toLowerCase(); const d=tx.description.toLowerCase();
-        return days<=5 && near(+x.b.amount||0, +tx.amount||0, 1) && (!kw || kw.split(/[, ]+/).some(k=>k && d.includes(k.trim())));
-      });
-      if(candidates.length){
-        const {b,st} = candidates[0];
-        DB.txns.push({ id: uid(), billId: b.id, date: tx.date, amount: tx.amount, memo: tx.description, periodKey: periodKey(b) });
-        b.lastPaid = tx.date; b.nextDue = toISO(nextDueFrom(b, addDays(st.due,1)));
-        b.overdue = Math.max(0, (+b.overdue||0) - (+tx.amount||0));
-      }
-    });
-    saveDB(); renderAll();
-    alert(`Imported ${newTx.length} transactions and reconciled ${(DB.txns.length-before)} bills.`);
-    e.target.value='';
-  });
-
-  function indexCols(header){
-    const idx={}; header.forEach((h,i)=>{ idx[h]=i; idx[h.toLowerCase()]=i; }); return idx;
-  }
-
-  function parseCSV(text){
-    const out=[]; let row=[]; let cur=''; let inQ=false; for(let i=0;i<text.length;i++){
-      const c=text[i], n=text[i+1];
-      if(inQ){
-        if(c==='"' && n==='"'){ cur+='"'; i++; continue; }
-        if(c==='"'){ inQ=false; continue; }
-        cur+=c; continue;
-      }
-      if(c==='"'){ inQ=true; continue; }
-      if(c===','){ row.push(cur); cur=''; continue; }
-      if(c==='\n'){ row.push(cur); out.push(row); row=[]; cur=''; continue; }
-      if(c==='\r'){ continue; }
-      cur+=c;
-    }
-    row.push(cur); out.push(row);
-    return out.filter(r=>r.length && r.some(x=>String(x).trim()!=='') );
-  }
-
-  // Helper: reconcile a list of transactions {date, description, amount, account}
+  function indexCols(h){ const idx={}; h.forEach((x,i)=>idx[x]=i); return idx; }
   function reconcileTransactions(txList){
-    const before = DB.txns.length;
+    const before = DB.txns.length; const tday=today();
     txList.forEach(tx=>{
-      if(!tx || !tx.date) return;
-      const tdate = new Date(tx.date);
-      const candidates = DB.bills.map(b=>({b, st: statusFor(b)})).filter(x=>{
+      if(!tx || !tx.date) return; const tdate = new Date(tx.date); tdate.setHours(0,0,0,0);
+      const candidates = DB.bills.map(b=>({b,st:statusFor(b)})).filter(x=>{
         const due=x.st.due; const days=Math.abs((due - tdate)/86400000);
         const kw=((x.b.notes||'')+' '+(x.b.name||'')).toLowerCase(); const d=(tx.description||'').toLowerCase();
         return days<=5 && near(+x.b.amount||0, +tx.amount||0, 1) && (!kw || kw.split(/[, ]+/).some(k=>k && d.includes(k.trim())));
@@ -789,8 +934,7 @@
       if(candidates.length){
         const {b,st} = candidates[0];
         DB.txns.push({ id: uid(), billId: b.id, date: toISO(tx.date), amount: +tx.amount||0, memo: tx.memo||tx.description||'', periodKey: periodKey(b) });
-        b.lastPaid = toISO(tx.date);
-        b.nextDue = toISO(nextDueFrom(b, addDays(st.due,1)));
+        b.lastPaid = toISO(tx.date); b.nextDue = toISO(nextDueFrom(b, addDays(st.due,1)));
         b.overdue = Math.max(0, (+b.overdue||0) - (+tx.amount||0));
       }
     });
@@ -798,275 +942,24 @@
     return DB.txns.length - before;
   }
 
-  // ===== Profiles (local) – simplified (no crypto) =====
-  function getProfiles(){
-    try{
-      return JSON.parse(localStorage.getItem(PROFILES_KEY) || '[]');
-    }catch(e){
-      return [];
+  $('#csvFile').addEventListener('change', async e=>{
+    const f=e.target.files[0]; if(!f) return; const txt=await f.text();
+    const rows=parseCSV(txt); if(!rows.length){ alert('No rows found'); return; }
+    const idx = indexCols(rows[0]);
+    const newTx=[]; for(let i=1;i<rows.length;i++){
+      const r=rows[i]; if(!r || !r.length) continue;
+      const date=r[idx.date]||r[idx.Date]||r[0];
+      const desc=r[idx.description]||r[idx.Description]||r[1]||'';
+      let amt=r[idx.amount]||r[idx.Amount]||r[2]||'0'; amt= +String(amt).replace(/[^-\d.]/g,'');
+      const account=r[idx.account]||r[idx.Account]||'';
+      newTx.push({id:uid(),date:toISO(date),description:desc,amount:amt,account});
     }
-  }
+    const matched = reconcileTransactions(newTx);
+    alert(`Imported ${newTx.length} transactions and reconciled ${matched} bills.`);
+    e.target.value='';
+  });
 
-  function saveProfiles(list){
-    localStorage.setItem(PROFILES_KEY, JSON.stringify(list));
-  }
-
-  function getCurrentProfileId(){
-    return localStorage.getItem(CURRENT_KEY);
-  }
-
-  function getCurrentProfile(){
-    const id = getCurrentProfileId();
-    if(!id) return null;
-    return getProfiles().find(p => p.id === id) || null;
-  }
-
-  function profileKey(id){
-    return BASE_KEY + ':' + id;
-  }
-
-  function initProfiles(){
-    const pid = getCurrentProfileId();
-    if(pid){
-      KEY = profileKey(pid);
-    } else {
-      KEY = BASE_KEY;
-    }
-  }
-
-  function refreshProfileBadge(){
-    const btn = $('#btnProfile');
-    if(!btn) return;
-    const p = getCurrentProfile();
-    btn.textContent = p ? ('Profile: ' + p.name) : 'Profile';
-  }
-
-  function createProfile(name, password){
-    name = (name || '').trim();
-    if(!name || !password){
-      alert('Enter name + password');
-      return;
-    }
-    const list = getProfiles();
-    if(list.some(p => p.name.toLowerCase() === name.toLowerCase())){
-      alert('Name already exists');
-      return;
-    }
-    const id = uid();
-    list.push({ id, name, password });
-    saveProfiles(list);
-
-    localStorage.setItem(CURRENT_KEY, id);
-    KEY = profileKey(id);
-    loadDB();
-    refreshProfileBadge();
-  }
-
-  function loginProfile(name, password){
-    name = (name || '').trim();
-    const list = getProfiles();
-    const p = list.find(x => x.name.toLowerCase() === name.toLowerCase());
-    if(!p){
-      alert('No such profile');
-      return;
-    }
-    if(p.password !== password){
-      alert('Wrong password');
-      return;
-    }
-    localStorage.setItem(CURRENT_KEY, p.id);
-    KEY = profileKey(p.id);
-    loadDB();
-    refreshProfileBadge();
-  }
-
-  function signOutProfile(){
-    localStorage.removeItem(CURRENT_KEY);
-    KEY = BASE_KEY;
-    loadDB();
-    refreshProfileBadge();
-    showWelcome();
-    $('#authDlg').close();
-  }
-
-  function openProfileDlg(){
-    const dlg = $('#authDlg'); if(!dlg) return;
-    const list = getProfiles();
-    const wrap = $('#profilesList');
-    if(wrap){
-      wrap.innerHTML='';
-      list.forEach(p=>{
-        const b=document.createElement('button');
-        b.className='ghost';
-        b.textContent=p.name;
-        b.onclick=()=>{ $('#profName').value=p.name; $('#profPass').focus(); };
-        wrap.appendChild(b);
-      });
-    }
-    const cur = getCurrentProfile();
-    const info = $('#profileInfo');
-    if(info) info.textContent = cur ? ('Current: '+cur.name) : 'Current: Guest (no profile)';
-    dlg.showModal();
-  }
-
-  $('#btnProfile')?.addEventListener('click', openProfileDlg);
-  $('#btnCreateProfile')?.addEventListener('click', ()=>{ createProfile($('#profName').value, $('#profPass').value); });
-  $('#btnLoginProfile')?.addEventListener('click', ()=>{ loginProfile($('#profName').value, $('#profPass').value); });
-  $('#btnSignOut')?.addEventListener('click', signOutProfile);
-  $('#btnCloseAuth')?.addEventListener('click', ()=> $('#authDlg').close());
-
-  // Welcome gating helpers
-  function isLoggedIn(){ return !!getCurrentProfileId(); }
-  function showWelcome(){ document.getElementById('welcome')?.classList.remove('hidden'); document.getElementById('appShell')?.classList.add('hidden'); }
-  function hideWelcome(){ document.getElementById('welcome')?.classList.add('hidden'); document.getElementById('appShell')?.classList.remove('hidden'); }
-
-  function handleWelcomeCreate(){
-    createProfile($('#wName').value, $('#wPass').value);
-    if(isLoggedIn()) hideWelcome();
-  }
-
-  function handleWelcomeLogin(){
-    loginProfile($('#wName').value, $('#wPass').value);
-    if(isLoggedIn()) hideWelcome();
-  }
-
-  $('#wCreate')?.addEventListener('click', handleWelcomeCreate);
-  $('#wLogin')?.addEventListener('click', handleWelcomeLogin);
-
-// ---------- Gmail import -> reconcileTransactions ----------
-async function gmailImportBills() {
-  console.log("gmailImportBills() called. gapiReady =", gapiReady, "google =", window.google);
-
-  // Check that the Google Identity script actually loaded
-  if (!window.google || !google.accounts || !google.accounts.oauth2) {
-    console.error("Google Identity Services not available on window.google");
-    alert(
-      "Google sign-in script didn't load.\n\n" +
-      "Check that:\n" +
-      "• https://accounts.google.com is not blocked by an extension/ad-blocker\n" +
-      "• Third-party scripts are allowed for this site."
-    );
-    return;
-  }
-
-  if (!gapiReady) {
-    alert("Gmail client not ready yet. Wait a moment and try again.");
-    return;
-  }
-
-  if (!gmailTokenClient) {
-    console.log("Initializing gmailTokenClient");
-    gmailTokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: GMAIL_CLIENT_ID,
-      scope: GMAIL_SCOPES,
-      callback: async (tokenResponse) => {
-        console.log("Token callback fired:", tokenResponse);
-        try {
-          await fetchAndReconcileGmail();
-        } catch (err) {
-          console.error("fetchAndReconcileGmail() failed:", err);
-        }
-      },
-    });
-  }
-
-  try {
-    console.log("Requesting access token...");
-    gmailTokenClient.requestAccessToken({ prompt: "" });
-  } catch (e) {
-    console.error("requestAccessToken error", e);
-    alert("Error starting Google auth. See console for details.");
-  }
-}
-
-
-
-
-async function fetchAndReconcileGmail() {
-  const QUERY =
-    'newer_than:365d (subject:(bill OR statement OR invoice OR receipt OR "payment due" OR due) OR has:attachment filename:pdf)';
-
-  try {
-    const listRes = await gapi.client.gmail.users.messages.list({
-      userId: "me",
-      q: QUERY,
-      maxResults: 100,
-      includeSpamTrash: true,
-    });
-
-    console.log("Gmail search query:", QUERY);
-    console.log("Gmail search results:", listRes.result);
-
-    const messages = listRes.result.messages || [];
-    if (!messages.length) {
-      alert(
-        "No matching emails found.\n\n" +
-          "Query used:\n" +
-          QUERY +
-          "\n\nOpen Console → see 'Gmail search results' for details."
-      );
-      return;
-    }
-
-    const txs = [];
-
-    for (const msg of messages) {
-      const detail = await gapi.client.gmail.users.messages.get({
-        userId: "me",
-        id: msg.id,
-        format: "full",
-      });
-
-      const headers = detail.result.payload?.headers || [];
-      const getHeader = (name) => {
-        const h = headers.find((x) => x.name.toLowerCase() === name.toLowerCase());
-        return h ? h.value : "";
-      };
-
-      const subject = getHeader("Subject");
-      const from = getHeader("From");
-      const dateHeader = getHeader("Date");
-
-      let dateIso;
-      try {
-        dateIso = toISO(new Date(dateHeader));
-      } catch {
-        dateIso = toISO(today());
-      }
-
-      const snippet = detail.result.snippet || "";
-      const amt = extractAmount(subject + " " + snippet);
-
-      if (!amt) continue;
-
-      txs.push({
-        date: dateIso,
-        description: subject || "Bill email",
-        amount: Math.abs(amt),
-        memo: `From Gmail (${from})`,
-      });
-    }
-
-    if (!txs.length) {
-      alert(
-        "Found emails, but couldn't extract dollar amounts from subject/snippet.\n\n" +
-          "Tip: many bills hide the amount in the email body or PDF."
-      );
-      return;
-    }
-
-    const matched = reconcileTransactions(txs);
-    alert(`Scanned ${messages.length} emails; extracted ${txs.length} amounts; reconciled ${matched} bills.`);
-  } catch (e) {
-    console.error("Gmail import error", e);
-    alert("Gmail import failed. See browser console for details.");
-  }
-}
-
-
-
-
-  // Plaid Link integration (frontend)
+  // ---------- Plaid Link (frontend stub) ----------
   const API_BASE = '';
   async function plaidConnect(){
     try{
@@ -1090,13 +983,10 @@ async function fetchAndReconcileGmail() {
       handler.open();
     }catch(e){ console.error(e); alert('Plaid connect failed'); }
   }
-
   function isoDaysAgo(n){ const d=new Date(); d.setDate(d.getDate()-Math.max(1, +n||30)); return toISO(d); }
-
   async function plaidSync(){
     try{
-      const days = $('#plaidSince')?.value || 30;
-      const since = isoDaysAgo(days);
+      const days = $('#plaidSince')?.value || 30; const since = isoDaysAgo(days);
       const res = await fetch(API_BASE + '/api/transactions?since='+since);
       if(!res.ok){ alert('Sync failed. Is the bank linked?'); return; }
       const data = await res.json();
@@ -1105,36 +995,116 @@ async function fetchAndReconcileGmail() {
       alert(`Fetched ${txs.length} transactions; reconciled ${matched} bills.`);
     }catch(e){ console.error(e); alert('Sync error'); }
   }
+  $('#btnPlaidLink').addEventListener('click', plaidConnect);
+  $('#btnPlaidSync').addEventListener('click', plaidSync);
 
-  $('#btnPlaidLink')?.addEventListener('click', plaidConnect);
-  $('#btnPlaidSync')?.addEventListener('click', plaidSync);
+  // ---------- Email Bill Capture (frontend stub) ----------
+  $('#btnGmail').addEventListener('click', ()=>{ window.location.href = API_BASE + '/auth/gmail/start'; });
+  $('#btnOutlook').addEventListener('click', ()=>{ window.location.href = API_BASE + '/auth/outlook/start'; });
+  $('#btnMailScan').addEventListener('click', scanInbox);
 
-     // Init
+  function matchBillByVendor(vendor){
+    const v=(vendor||'').toLowerCase(); if(!v) return null;
+    const byNotes = DB.bills.find(b=> (b.notes||'').toLowerCase().split(/[, ]+/).some(k=>k && v.includes(k.trim())));
+    if(byNotes) return byNotes;
+    const byName = DB.bills.find(b=> (b.name||'').toLowerCase().includes(v));
+    return byName || null;
+  }
+  function applyEmailBillUpdates(items){
+    let updated=0; const seen=new Set();
+    items.forEach(it=>{
+      const b = matchBillByVendor(it.vendor || it.from || it.sender || ''); if(!b) return;
+      let changed=false; if(it.amountDue && +it.amountDue>0){ b.amount = +it.amountDue; changed=true; }
+      if(it.dueDate){ b.anchor = toISO(it.dueDate); b.nextDue=undefined; changed=true; }
+      if(changed){ b.lastVendorUpdate = {provider: it.provider||'mail', at: toISO(new Date()), ref: it.ref||it.messageId||'', memo: (it.subject||'')}; updated++; seen.add(b.id); }
+    });
+    if(updated){ saveDB(); renderAll(); }
+    return {updated, count: seen.size};
+  }
+  async function scanInbox(){
+    try{
+      const days = +($('#mailSince')?.value||45); const since = isoDaysAgo(days);
+      $('#mailStatus').textContent = 'Scanning…';
+      const res = await fetch(API_BASE + '/api/mail/fetch?since='+since);
+      if(!res.ok){ $('#mailStatus').textContent = 'Not connected or fetch failed'; return; }
+      const data = await res.json(); const items = data.items || data.bills || [];
+      const {updated} = applyEmailBillUpdates(items);
+      $('#mailStatus').textContent = `Scanned ${items.length} items; updated ${updated} bills.`;
+      alert(`Scanned ${items.length} emails; updated ${updated} bills.`);
+    }catch(e){ console.error(e); $('#mailStatus').textContent = 'Scan error'; }
+  }
+
+  // ---------- Seed recommended bills ----------
+  function seedRecommended(){
+    const seed=[
+      {name:'Mortgage', category:'Household', subcategory:'Housing', amount:2100, frequency:'monthly', anchor: toISO(today()), notes:'mortgage home bank escrow', overdue:0, balance:0},
+      {name:'Electric (Utility)', category:'Household', subcategory:'Utilities', amount:160, frequency:'monthly', anchor: toISO(today()), notes:'electric entergy txu', overdue:0, balance:0},
+      {name:'Internet (Spectrum)', category:'Household', subcategory:'Internet', amount:85, frequency:'monthly', anchor: toISO(today()), notes:'spectrum internet charter', overdue:0, balance:0},
+      {name:'Cell Phones', category:'Household', subcategory:'Phone', amount:180, frequency:'monthly', anchor: toISO(today()), notes:'verizon att t-mobile', overdue:0, balance:0},
+      {name:'Office Rent', category:'Business', subcategory:'Office', amount:1400, frequency:'monthly', anchor: toISO(today()), notes:'lease office rent', overdue:0, balance:0},
+      {name:'Malpractice Insurance', category:'Business', subcategory:'Insurance', amount:1200, frequency:'yearly', anchor: toISO(today()), notes:'insurance malpractice', overdue:0, balance:0},
+      {name:'Google Workspace', category:'Business', subcategory:'SaaS', amount:36, frequency:'monthly', anchor: toISO(today()), notes:'google workspace gsuite', overdue:0, balance:0},
+      {name:'QuickBooks Online', category:'Business', subcategory:'Accounting', amount:90, frequency:'monthly', anchor: toISO(today()), notes:'quickbooks intuit', overdue:0, balance:0}
+    ];
+    seed.forEach(s=>{ s.id=uid(); });
+    DB.bills = DB.bills.concat(seed);
+    saveDB(); renderAll();
+  }
+
+  // ---------- Header buttons ----------
+  $('#btnProfile').addEventListener('click', openProfileDlg);
+  $('#btnCreateProfile').addEventListener('click', async ()=>{ await createProfile($('#profName').value, $('#profPass').value); });
+  $('#btnLoginProfile').addEventListener('click', async ()=>{ await loginProfile($('#profName').value, $('#profPass').value); });
+  $('#btnSignOut').addEventListener('click', signOutProfile);
+  $('#btnCloseAuth').addEventListener('click', ()=> $('#authDlg').close());
+  $('#addSample').addEventListener('click', seedRecommended);
+  $('#clearAll').addEventListener('click', ()=>{ if(confirm('Reset all data for this profile?')){ DB={bills:[], txns:[]}; saveDB(); renderAll(); }});
+
+  // Nav buttons
+  function showSection(which){
+    $('#dashboardSection')?.classList.add('hidden');
+    $('#payLogSection')?.classList.add('hidden');
+    $('#summarySection')?.classList.add('hidden');
+    $('#chartsSection')?.classList.add('hidden');
+    if(which==='dashboard') $('#dashboardSection')?.classList.remove('hidden');
+    if(which==='paylog'){ $('#payLogSection')?.classList.remove('hidden'); renderPayLog(); }
+    if(which==='summary'){ $('#summarySection')?.classList.remove('hidden'); renderSummary(); }
+    if(which==='charts'){ $('#chartsSection')?.classList.remove('hidden'); renderChart(); }
+  }
+    if(which==='summary'){ $('#summarySection')?.classList.remove('hidden'); renderSummary(); }
+  }
+  $('#btnDash')?.addEventListener('click', ()=> showSection('dashboard'));
+  $('#btnPayLog')?.addEventListener('click', ()=> showSection('paylog'));
+  $('#btnSummary')?.addEventListener('click', ()=> showSection('summary'));
+  $('#btnCharts')?.addEventListener('click', ()=> showSection('charts'));
+  $('#btnChartRefresh')?.addEventListener('click', renderChart);
+  $('#chartMetric')?.addEventListener('change', renderChart);
+  $('#chartCat')?.addEventListener('change', renderChart);
+  $('#summaryCat')?.addEventListener('change', renderSummary);
+
+  // ---------- Export CSV ----------
+  $('#btnExport').addEventListener('click', ()=>{
+    const rows = [['name','category','subcategory','amount','overdue','balance','frequency','anchor','autopay','account','notes','portalUrl']];
+    rows.push(...DB.bills.map(b=>[b.name,b.category,b.subcategory,b.amount,(+b.overdue||0),(+b.balance||0),b.frequency,b.anchor,b.autopay,b.account,b.notes,b.portalUrl||'']));
+    const csv = rows.map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='bills.csv'; a.click(); URL.revokeObjectURL(url);
+  });
+
+  // Hook up reset dialog events
+  document.addEventListener('DOMContentLoaded', ()=>{
+    document.querySelector('#wForgot')?.addEventListener('click', openResetDlg);
+    document.querySelector('#btnDoReset')?.addEventListener('click', doReset);
+    document.querySelector('#btnResetClose')?.addEventListener('click', ()=> document.querySelector('#resetDlg').close());
+  });
+
+  // ---------- Init ----------
   initProfiles();
   loadDB();
   refreshProfileBadge();
-  if (isLoggedIn()) hideWelcome(); else showWelcome();
-  if (!DB.bills.length) {
-    setTimeout(() => $('#addSample').click(), 200);
-  }
 
-  // Directly wire Gmail button (HTML already loaded before this script runs)
-  const gmailBtn = document.getElementById('btnGmailImport');
-  console.log('Direct wiring – gmailBtn =', gmailBtn);
+  // Landing auth handled in the earlier IIFE (adds body.auth if logged in)
 
-  if (!gmailBtn) {
-    console.warn('Gmail button not found in DOM');
-  } else {
-    gmailBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      console.log('Gmail Import button clicked');
-      alert('Gmail button click handler is running');
-      gmailImportBills();
-    });
-  }
-</script>
-
-
-
+  </script>
 </body>
 </html>
