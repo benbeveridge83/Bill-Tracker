@@ -1,167 +1,164 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bills & Budget</title>
-  <style>
-    :root{
-      --mx: 1200px;
-      --bg: #ffffff;
-      --panel: #ffffff;
-      --ink: #0f172a;
-      --muted: #475569;
-      --line: #e5e7eb;
-      --brand: #0ea5e9;
-      --chip: #eef2ff;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, 'Noto Sans', sans-serif; line-height:1.5; color:var(--ink); background:var(--bg); margin:0}
-    header, main{max-width:var(--mx); margin:0 auto; padding:16px}
-    h1{font-size:1.75rem; margin:8px 0}
-    h2{font-size:1.25rem; margin:16px 0 8px}
-    .muted{color:var(--muted)}
-    .mono{font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1}
-    .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; overflow:hidden}
-    .pad{padding:16px}
-    .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
-    .toolbar .right{margin-left:auto}
-    input, select, button, textarea{font:inherit}
-    input, select, textarea{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#fff}
-    textarea{min-height:88px}
-    label{display:block; font-size:.9rem; margin-bottom:6px; color:var(--muted)}
-    .row{display:grid; grid-template-columns: 1fr 1fr; gap:12px}
-    @media (max-width: 720px){ .row{grid-template-columns: 1fr} }
-    button{border:0; border-radius:12px; padding:10px 14px; background:#111827; color:#fff; cursor:pointer}
-    button.ghost{background:transparent; color:#111827; border:1px solid var(--line)}
-    button.destr{background:#ef4444}
-    .help{font-size:.85rem; color:var(--muted)}
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bills & Budget</title>
+<style>
+  :root{
+    --mx: 1200px;
+    --bg: #ffffff;
+    --panel: #ffffff;
+    --ink: #0f172a;
+    --muted: #475569;
+    --line: #e5e7eb;
+    --brand: #0ea5e9;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,'Noto Sans',sans-serif;line-height:1.5;color:var(--ink);background:var(--bg);margin:0}
+  header, main{max-width:var(--mx);margin:0 auto;padding:16px}
+  h1{font-size:1.75rem;margin:8px 0}
+  h2{font-size:1.25rem;margin:16px 0 8px}
+  .muted{color:var(--muted)}
+  .mono{font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .pad{padding:16px}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .toolbar .right{margin-left:auto}
+  input,select,button,textarea{font:inherit}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  label{display:block;font-size:.9rem;margin-bottom:6px;color:var(--muted)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width: 720px){ .row{grid-template-columns:1fr} }
+  button{border:0;border-radius:12px;padding:10px 14px;background:#111827;color:#fff;cursor:pointer}
+  button.ghost{background:transparent;color:#111827;border:1px solid var(--line)}
+  button.warn{background:#f59e0b}
+  button.destr{background:#ef4444}
+  .help{font-size:.85rem;color:var(--muted)}
+  table{width:100%;border-collapse:separate;border-spacing:0}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-weight:600;text-align:left;color:#111827;background:#f8fafc}
+  tbody tr:hover{background:#fafafa}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media (max-width:960px){.kpi{grid-template-columns:1fr 1fr}}
+  .k{border:1px solid var(--line);border-radius:16px;padding:12px}
+  .k strong{font-size:1.25rem}
+  .chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.8rem}
+  .ok{background:#dcfce7;color:#065f46}
+  .due{background:#fef9c3;color:#854d0e}
+  .over{background:#fee2e2;color:#991b1b}
+  .pend{background:#e0e7ff;color:#3730a3}
+  dialog{border:1px solid var(--line);border-radius:16px;padding:0;max-width:720px}
+  dialog .card{border:0}
 
-    table{width:100%; border-collapse:separate; border-spacing:0;}
-    th, td{padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top}
-    th{font-weight:600; text-align:left; color:#111827; background:#f8fafc}
-    tbody tr:hover{background:#fafafa}
+  /* Welcome / landing */
+  #welcome{min-height:100vh;display:block;background:linear-gradient(180deg,#f8fafc,#ffffff 40%,#f8fafc)}
+  .hero{padding:48px 16px 8px;text-align:center}
+  .hero h1{font-size:32px;margin:0}
+  .hero p.sub{color:#475569;margin:8px 0 0}
+  .welcome-wrap{max-width:1000px;margin:0 auto;padding:0 16px 32px;display:grid;gap:16px;grid-template-columns:1fr}
+  @media(min-width:960px){.welcome-wrap{grid-template-columns:1.2fr .8fr}}
+  .welcome-card{border-radius:16px}
+  .welcome-card .pad{padding:16px}
+  .feature{background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;padding:12px}
+  .feature h3{margin:0 0 6px;font-size:15px}
+  .hero .logo{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:14px;background:#0ea5e9;color:#fff;margin-bottom:12px;font-weight:800}
 
-    .kpi{display:grid; grid-template-columns: repeat(4, 1fr); gap:12px}
-    @media (max-width: 960px){ .kpi{grid-template-columns: 1fr 1fr} }
-    .k{border:1px solid var(--line); border-radius:16px; padding:12px}
-    .k strong{font-size:1.25rem}
+  /* AUTH GATING */
+  #appShell{display:none !important}
+  body.auth #appShell{display:block !important}
+  body.auth #welcome{display:none !important}
+  .hidden{display:none!important}
 
-    .chip{display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size:.8rem}
-    .chip.over{background:#fee2e2; color:#991b1b}
-    .chip.due{background:#fef9c3; color:#854d0e}
-    .chip.ok{background:#dcfce7; color:#065f46}
-
-    dialog{border:1px solid var(--line); border-radius:16px; padding:0; max-width:720px}
-    dialog .card{border:0}
-
-    /* Welcome / landing styling */
-    #welcome{min-height:100vh; display:block; flex-direction:column; gap:20px; background:linear-gradient(180deg,#f8fafc,#ffffff 40%,#f8fafc)}
-    .hero{padding:48px 16px 8px; text-align:center}
-    .hero h1{font-size:32px; margin:0}
-    .hero p.sub{color:#475569; margin:8px 0 0}
-    .welcome-wrap{max-width:1000px; margin:0 auto; padding:0 16px 32px; display:grid; gap:16px; grid-template-columns:1fr}
-    @media(min-width:960px){.welcome-wrap{grid-template-columns:1.2fr .8fr}}
-    .welcome-card{border-radius:16px}
-    .welcome-card .pad{padding:16px}
-    .feature{background:#ffffff; border:1px solid #e5e7eb; border-radius:14px; padding:12px}
-    .feature h3{margin:0 0 6px; font-size:15px}
-    .hero .logo{display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:14px; background:#0ea5e9; color:#fff; margin-bottom:12px; font-weight:800}
-
-    /* AUTH GATING */
-    #appShell{display:none !important}
-    body.auth #appShell{display:block !important}
-    body.auth #welcome{display:none !important}
-    .hidden{display:none!important}
-  table.compact th, table.compact td{padding:4px 6px;font-size:12px;line-height:1.1}
+  /* Compact tables / status colors */
+  table.compact th,table.compact td{padding:4px 6px;font-size:12px;line-height:1.1}
   tr.currentRow{background:#ecfdf5}
   tr.pastDueRow{background:#fef2f2}
   .currentNote{font-size:.78rem;color:#166534}
 
-  </style>
-  <style>
-    button.mini{padding:6px 10px; font-size:.85rem}
-    .rowActions{flex-wrap:nowrap; gap:6px}
-    @media (max-width:720px){ .rowActions{flex-wrap:wrap} }
-  </style>
-  <!-- Plaid Link SDK (optional) -->
-  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  /* Row actions */
+  button.mini{padding:6px 10px;font-size:.85rem}
+  .rowActions{flex-wrap:nowrap;gap:6px}
+  @media (max-width:720px){ .rowActions{flex-wrap:wrap} }
+</style>
 </head>
 <body>
 
-  <!-- Landing / Welcome -->
-  <section id="welcome">
-    <div class="hero">
-      <div class="logo">BB</div>
-      <h1>Bills & Budget</h1>
-      <p class="sub">One place for household & business bills — profiles, trends, and smart reconciliation.</p>
-    </div>
-    <div class="welcome-wrap">
-      <div class="card welcome-card">
-        <h2 style="padding:12px 14px; margin:0; border-bottom:1px solid var(--line)">Sign in</h2>
-        <div class="pad">
-          <div class="row">
-            <div>
-              <label>Name</label>
-              <input id="wName" placeholder="e.g., Ben" />
-            </div>
-            <div>
-              <label>Password</label>
-              <input id="wPass" type="password" placeholder="••••••••" />
-            </div>
+<!-- Welcome -->
+<section id="welcome">
+  <div class="hero">
+    <div class="logo">BB</div>
+    <h1>Bills & Budget</h1>
+    <p class="sub">Profiles, trends, reconciliation — all local to your browser.</p>
+  </div>
+  <div class="welcome-wrap">
+    <div class="card welcome-card">
+      <h2 style="padding:12px 14px;margin:0;border-bottom:1px solid var(--line)">Sign in</h2>
+      <div class="pad">
+        <div class="row">
+          <div>
+            <label>Name</label>
+            <input id="wName" placeholder="e.g., Ben" />
           </div>
-          <div class="toolbar" style="margin-top:10px">
-            <button id="wLogin">Log in</button>
-            <button class="ghost" id="wCreate">Create profile</button>
-            <button class="ghost" id="wForgot">Forgot password?</button>
+          <div>
+            <label>Password</label>
+            <input id="wPass" type="password" placeholder="••••••••" />
           </div>
-          <div class="help" style="margin-top:8px">Profiles are stored locally on this browser. Passwords are salted+hashed; data is not end‑to‑end encrypted in this version.</div>
         </div>
-      </div>
-
-      <div style="display:grid; gap:12px; height:max-content">
-        <div class="feature"><h3>💳 Auto-reconcile</h3><div class="muted">CSV & Plaid sync match payments to bills automatically.</div></div>
-        <div class="feature"><h3>📈 Trends</h3><div class="muted">See category & subcategory spend over time; export when needed.</div></div>
-        <div class="feature"><h3>📨 Email bill capture</h3><div class="muted">Parse statements from Gmail/Outlook to update due amounts & dates.</div></div>
-        <div class="feature"><h3>👥 Multiple profiles</h3><div class="muted">Separate spaces for home, firm, or team members.</div></div>
+        <div class="toolbar" style="margin-top:10px">
+          <button id="wLogin">Log in</button>
+          <button class="ghost" id="wCreate">Create profile</button>
+          <button class="ghost" id="wForgot">Forgot password?</button>
+        </div>
+        <div class="help" style="margin-top:8px">Profiles are stored locally. Passwords are salted & hashed.</div>
       </div>
     </div>
-  </section>
 
-  <!-- App shell (hidden until login) -->
-  <div id="appShell">
-    <header class="toolbar">
-      <div style="display:flex; align-items:center; gap:10px">
-        <div class="logo" style="width:36px;height:36px;border-radius:10px;background:#0ea5e9;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">BB</div>
-        <div>
-          <h1 style="margin:0">Bills & Budget</h1>
-          <div class="help" id="profileBadge">Profile</div>
-        </div>
-      </div>
-      <div class="right toolbar">
-        <button class="ghost" id="btnDash">Dashboard</button>
-        <button class="ghost" id="btnPayLog">Pay Log</button>
-        <button class="ghost" id="btnSummary">Summary</button>
-        <select id="filterCat" title="Filter category">
-          <option value="all">All</option>
-          <option value="Household">Household</option>
-          <option value="Business">Business</option>
-        </select>
-        <select id="filterStatus" title="Status">
-          <option value="any">Any status</option>
-          <option value="overdue">Overdue</option>
-          <option value="due">Due</option>
-          <option value="future">Future</option>
-        </select>
-        <button class="ghost" id="btnProfile">Profile</button>
-        <button class="ghost" id="addSample">Add recommended bills</button>
-        <button class="ghost" id="clearAll">Reset app</button>
-      </div>
-    </header>
+    <div style="display:grid;gap:12px;height:max-content">
+      <div class="feature"><h3>💳 Auto-reconcile</h3><div class="muted">CSV/Plaid matching by amount & keywords.</div></div>
+      <div class="feature"><h3>📈 Trends</h3><div class="muted">Category & subcategory over time.</div></div>
+      <div class="feature"><h3>👥 Multiple profiles</h3><div class="muted">Separate spaces for home, firm, team.</div></div>
+    </div>
+  </div>
+</section>
 
-    <main>
-      <div id="dashboardSection">
+<!-- App -->
+<div id="appShell">
+  <header class="toolbar">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="logo" style="width:36px;height:36px;border-radius:10px;background:#0ea5e9;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">BB</div>
+      <div>
+        <h1 style="margin:0">Bills & Budget</h1>
+        <div class="help" id="profileBadge">Profile</div>
+      </div>
+    </div>
+    <div class="right toolbar">
+      <button class="ghost" id="btnDash">Dashboard</button>
+      <button class="ghost" id="btnPayLog">Pay Log</button>
+      <button class="ghost" id="btnSummary">Summary</button>
+      <button class="ghost" id="btnCharts">Charts</button>
+      <select id="filterCat" title="Filter category">
+        <option value="all">All</option>
+        <option value="Household">Household</option>
+        <option value="Business">Business</option>
+      </select>
+      <select id="filterStatus" title="Status">
+        <option value="any">Any</option>
+        <option value="overdue">Overdue</option>
+        <option value="due">Due</option>
+        <option value="future">Future</option>
+        <option value="current">Current</option>
+        <option value="cancel">Cancel pending</option>
+      </select>
+      <button class="ghost" id="btnProfile">Profile</button>
+      <button class="ghost" id="addSample">Add recommended bills</button>
+      <button class="ghost" id="clearAll">Reset app</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="dashboardSection">
       <h2>Overview</h2>
       <div class="kpi" id="kpis">
         <div class="k"><div class="muted">Overdue</div><strong id="kOverdue">0</strong></div>
@@ -175,18 +172,18 @@
       <div class="pad"></div>
 
       <div class="card" style="border-radius:16px">
-        <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Bills</h2>
+        <h2 style="padding:12px 16px;margin:0;border-bottom:1px solid var(--line)">Bills</h2>
         <div class="pad">
           <div class="toolbar" style="margin:10px 0">
             <input id="search" placeholder="Search by name, subcategory, or note" />
-            <label style="display:inline-flex; align-items:center; gap:6px">Sort
+            <label style="display:inline-flex;align-items:center;gap:6px">Sort
               <select id="sortBy">
                 <option value="due">Due date</option>
                 <option value="amountDesc">Amount: High→Low</option>
                 <option value="amountAsc">Amount: Low→High</option>
               </select>
             </label>
-            <label style="display:inline-flex; align-items:center; gap:6px">Monthly view
+            <label style="display:inline-flex;align-items:center;gap:6px">Monthly view
               <input type="checkbox" id="viewMonthlyEq" />
             </label>
             <button id="btnAdd">Add bill</button>
@@ -217,7 +214,7 @@
               <td class="sc"></td>
               <td class="am mono"></td>
               <td class="ov mono"></td>
-              <td class="ba mono"></td>
+              <td class="ba mono" title=""></td>
               <td class="du"></td>
               <td class="st"></td>
               <td>
@@ -225,759 +222,727 @@
                   <button class="ghost mini btnEdit">Edit</button>
                   <button class="ghost mini btnPortal">Portal</button>
                   <button class="ghost mini btnCurrent">Current</button>
-                  <button class="ghost mini btnPartial">Partial payment</button>
+                  <button class="ghost mini btnPartial">Partial</button>
+                  <button class="ghost mini warn btnCancel">Cancel</button>
                 </div>
               </td>
             </tr>
           </template>
         </div>
       </div>
+    </div>
 
-      <div class="pad"></div>
+    <section id="payLogSection" class="card hidden">
+      <h2 style="padding:12px 16px;margin:0;border-bottom:1px solid var(--line)">Pay Log</h2>
+      <div class="pad">
+        <table class="compact">
+          <thead><tr><th>Date</th><th>Bill</th><th class="mono">Amount</th><th>Memo</th></tr></thead>
+          <tbody id="payLogRows"></tbody>
+        </table>
+      </div>
+    </section>
 
-      <div class="card" style="border-radius:16px">
-        <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Data sources</h2>
-        <div class="pad">
-          <div style="margin-top:12px">
-            <label>Import bank CSV (date, description, amount[, account])</label>
-            <input id="csvFile" type="file" accept=".csv" />
-            <div class="help">We scan newly imported transactions to auto‑reconcile bills by amount ±$1 and keywords.</div>
-          </div>
+    <section id="summarySection" class="card hidden">
+      <h2 style="padding:12px 16px;margin:0;border-bottom:1px solid var(--line)">Summary</h2>
+      <div class="pad">
+        <div class="toolbar" style="margin-bottom:8px">
+          <label style="display:inline-flex;align-items:center;gap:6px">Category
+            <select id="summaryCat">
+              <option value="all">All</option>
+              <option value="Household">Household</option>
+              <option value="Business">Business</option>
+            </select>
+          </label>
+          <div class="help">Click a column header to sort (toggles asc/desc).</div>
+        </div>
+        <table class="compact" id="summaryTable">
+          <thead>
+            <tr>
+              <th data-key="name">Name</th>
+              <th data-key="category">Cat.</th>
+              <th data-key="subcategory">Subcat.</th>
+              <th data-key="monthly" class="mono">Monthly</th>
+              <th data-key="overdue" class="mono">Overdue</th>
+              <th data-key="balance" class="mono">Balance</th>
+              <th data-key="due">Due</th>
+              <th data-key="status">Status</th>
+            </tr>
+          </thead>
+          <tbody id="summaryRows"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3" class="mono" style="text-align:right"><strong>Totals:</strong></td>
+              <td class="mono" id="sumMonthly">$0.00</td>
+              <td class="mono" id="sumOverdue">$0.00</td>
+              <td class="mono" id="sumBalance">$0.00</td>
+              <td colspan="2"></td>
+            </tr>
+          </tfoot>
+        </table>
+        <div class="help">Green = current (no overdue/balance and not past due). Red = overdue.</div>
+      </div>
+    </section>
 
-          <div style="margin-top:12px">
-            <label>Bank sync (Plaid)</label>
-            <div class="toolbar">
-              <button id="btnPlaidLink">Connect bank (Plaid)</button>
-              <label style="display:inline-flex;align-items:center;gap:6px">Since days
-                <input id="plaidSince" type="number" min="1" value="30" style="width:100px" />
-              </label>
-              <button class="ghost" id="btnPlaidSync">Sync transactions</button>
-            </div>
-            <div class="help" id="plaidStatus">Not linked</div>
-          </div>
+    <section id="chartsSection" class="card hidden">
+      <h2 style="padding:12px 16px;margin:0;border-bottom:1px solid var(--line)">Charts</h2>
+      <div class="pad">
+        <div class="toolbar" style="margin-bottom:8px">
+          <label style="display:inline-flex;align-items:center;gap:6px">Metric
+            <select id="chartMetric"><option value="balance">Balance</option><option value="overdue">Overdue</option></select>
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:6px">Category
+            <select id="chartCat">
+              <option value="all">All</option>
+              <option value="Household">Household</option>
+              <option value="Business">Business</option>
+            </select>
+          </label>
+          <button class="ghost" id="btnChartRefresh">Refresh</button>
+        </div>
+        <canvas id="chartCanvas" style="width:100%;height:480px"></canvas>
+      </div>
+    </section>
+  </main>
+</div>
 
-          <div style="margin-top:12px">
-            <label>Email bill capture</label>
-            <div class="toolbar">
-              <button id="btnGmail">Connect Gmail</button>
-              <button class="ghost" id="btnOutlook">Connect Outlook</button>
-              <label style="display:inline-flex;align-items:center;gap:6px">Since days
-                <input id="mailSince" type="number" min="1" value="45" style="width:100px" />
-              </label>
-              <button class="ghost" id="btnMailScan">Scan inbox</button>
-            </div>
-            <div class="help" id="mailStatus">Not connected</div>
-          </div>
+<!-- Bill dialog -->
+<dialog id="billDlg">
+  <div class="card">
+    <h2 style="padding:12px 16px;margin:0;border-bottom:1px solid var(--line)">Bill</h2>
+    <div class="pad">
+      <div class="row">
+        <div>
+          <label>Name</label>
+          <input id="name" placeholder="e.g., Spectrum Internet" />
+        </div>
+        <div>
+          <label>Category</label>
+          <select id="category"><option>Household</option><option>Business</option></select>
         </div>
       </div>
-
-          </div>
-
-      <section id="payLogSection" class="card hidden">
-        <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Pay Log</h2>
-        <div class="pad">
-          <table class="compact">
-            <thead><tr><th>Date</th><th>Bill</th><th class="mono">Amount</th><th>Memo</th></tr></thead>
-            <tbody id="payLogRows"></tbody>
-          </table>
+      <div class="row">
+        <div>
+          <label>Subcategory</label>
+          <input id="subcategory" placeholder="e.g., Internet / Utilities / Phone" />
         </div>
-      </section>
-
-      <div class="pad"></div>
-
-      <section id="summarySection" class="card hidden">
-        <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Summary</h2>
-        <div class="pad">
-          <table class="compact">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Cat.</th>
-                <th>Subcat.</th>
-                <th class="mono">Monthly</th>
-                <th class="mono">Overdue</th>
-                <th class="mono">Balance</th>
-                <th>Due</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="summaryRows"></tbody>
-          </table>
-          <div class="help">Rows in green are current (no overdue/balance). Rows in red are past due.</div>
+        <div>
+          <label>Amount (typical)</label>
+          <input id="amount" type="number" step="0.01" min="0" placeholder="129.99" />
         </div>
-      </section>
-    </main>
+      </div>
+      <div class="row">
+        <div>
+          <label>Frequency</label>
+          <select id="frequency">
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="weekly">Weekly</option>
+            <option value="custom">Custom (days)</option>
+          </select>
+        </div>
+        <div>
+          <label>Anchor (next due)</label>
+          <input id="anchor" type="date" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Custom cycle (days)</label>
+          <input id="customDays" type="number" min="1" placeholder="30" />
+        </div>
+        <div>
+          <label>Autopay?</label>
+          <select id="autopay"><option value="no">No</option><option value="yes">Yes</option></select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Overdue amount</label>
+          <input id="overdue" type="number" step="0.01" min="0" placeholder="0.00" />
+        </div>
+        <div>
+          <label>Current balance</label>
+          <input id="balance" type="number" step="0.01" min="0" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Balance as of (optional)</label>
+          <input id="balanceAsOf" type="date" />
+        </div>
+        <div>
+          <label>Portal URL</label>
+          <input id="portalUrl" type="url" placeholder="https://vendor-portal.example.com" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Account (optional)</label>
+          <input id="account" placeholder="e.g., Chase Checking, AmEx" />
+        </div>
+        <div>
+          <label>Notes</label>
+          <input id="notes" placeholder="keywords to help match bank/email, comma separated" />
+        </div>
+      </div>
+      <div class="toolbar" style="margin-top:12px">
+        <button id="saveBill">Save</button>
+        <button class="ghost" id="cancelBill">Cancel</button>
+        <button class="destr right hidden" id="deleteBill">Delete</button>
+      </div>
+    </div>
   </div>
+</dialog>
 
-  <!-- Bill dialog -->
-  <dialog id="billDlg">
-    <div class="card">
-      <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Bill</h2>
-      <div class="pad">
-        <div class="row">
-          <div>
-            <label>Name</label>
-            <input id="name" placeholder="e.g., Spectrum Internet" />
-          </div>
-          <div>
-            <label>Category</label>
-            <select id="category">
-              <option>Household</option>
-              <option>Business</option>
-            </select>
-          </div>
+<!-- Partial dialog -->
+<dialog id="payDlg">
+  <div class="card">
+    <h2 style="padding:12px 16px;margin:0;border-bottom:1px solid var(--line)">Partial Payment</h2>
+    <div class="pad">
+      <div class="row">
+        <div>
+          <label>Date</label>
+          <input id="payDate" type="date" />
         </div>
-        <div class="row">
-          <div>
-            <label>Subcategory</label>
-            <input id="subcategory" placeholder="e.g., Internet / Utilities / Phone" />
-          </div>
-          <div>
-            <label>Amount (typical)</label>
-            <input id="amount" type="number" step="0.01" min="0" placeholder="129.99" />
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label>Frequency</label>
-            <select id="frequency">
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="weekly">Weekly</option>
-              <option value="custom">Custom (days)</option>
-            </select>
-          </div>
-          <div>
-            <label>Anchor (next due)</label>
-            <input id="anchor" type="date" />
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label>Custom cycle (days)</label>
-            <input id="customDays" type="number" min="1" placeholder="30" />
-          </div>
-          <div>
-            <label>Autopay?</label>
-            <select id="autopay"><option value="no">No</option><option value="yes">Yes</option></select>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label>Overdue amount</label>
-            <input id="overdue" type="number" step="0.01" min="0" placeholder="0.00" />
-          </div>
-          <div>
-            <label>Current balance</label>
-            <input id="balance" type="number" step="0.01" min="0" placeholder="0.00" />
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label>Account (optional)</label>
-            <input id="account" placeholder="e.g., Chase Checking, AmEx" />
-          </div>
-          <div>
-            <label>Notes</label>
-            <input id="notes" placeholder="keywords to help match bank/email, comma separated" />
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label>Portal URL</label>
-            <input id="portalUrl" type="url" placeholder="https://vendor-portal.example.com" />
-          </div>
-          <div></div>
-        </div>
-        <div class="toolbar" style="margin-top:12px">
-          <button id="saveBill">Save</button>
-          <button class="ghost" id="cancelBill">Cancel</button>
+        <div>
+          <label>Amount</label>
+          <input id="payAmt" type="number" step="0.01" />
         </div>
       </div>
-    </div>
-  </dialog>
-
-  <!-- Pay dialog -->
-  <dialog id="payDlg">
-    <div class="card">
-      <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Partial Payment</h2>
-      <div class="pad">
-        <div class="row">
-          <div>
-            <label>Date</label>
-            <input id="payDate" type="date" />
-          </div>
-          <div>
-            <label>Amount</label>
-            <input id="payAmt" type="number" step="0.01" />
-          </div>
+      <div class="row">
+        <div>
+          <label>Memo</label>
+          <input id="payMemo" placeholder="optional" />
         </div>
-        <div class="row">
-          <div>
-            <label>Memo</label>
-            <input id="payMemo" placeholder="optional" />
-          </div>
-          <div>
-            <label style="display:inline-flex; align-items:center; gap:6px; margin-top:26px"><input id="paidReduceBalance" type="checkbox" /> Also reduce balance</label>
-          </div>
-        </div>
-        <div class="toolbar" style="margin-top:12px; justify-content:flex-end">
-          <button id="confirmPaid">Save</button>
-          <button class="ghost" id="cancelPaid">Cancel</button>
+        <div>
+          <label style="display:inline-flex;align-items:center;gap:6px;margin-top:26px"><input id="paidReduceBalance" type="checkbox" checked /> Also reduce balance</label>
         </div>
       </div>
-    </div>
-  </dialog>
-
-  <!-- Profiles dialog -->
-  <dialog id="authDlg">
-    <div class="card" style="border:0">
-      <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Profiles</h2>
-      <div class="pad">
-        <div id="profileInfo" class="help">Current: Guest (no profile)</div>
-        <div class="row">
-          <div>
-            <label>Name</label>
-            <input id="profName" placeholder="e.g., Ben" />
-          </div>
-          <div>
-            <label>Password</label>
-            <input id="profPass" type="password" placeholder="••••••••" />
-          </div>
-        </div>
-        <div class="toolbar" style="margin-top:8px">
-          <button id="btnCreateProfile">Create</button>
-          <button class="ghost" id="btnLoginProfile">Login</button>
-          <button class="ghost right" id="btnCloseAuth">Close</button>
-        </div>
-        <div style="margin-top:10px">
-          <div class="muted">Existing profiles (click to fill):</div>
-          <div id="profilesList" class="toolbar" style="margin-top:6px; flex-wrap:wrap"></div>
-        </div>
-        <div class="toolbar" style="margin-top:10px">
-          <button id="btnSignOut" class="destr">Sign out</button>
-        </div>
-        <div class="help">Local-only in this version. Passwords are salted+hashed; data not end‑to‑end encrypted.</div>
+      <div class="toolbar" style="margin-top:12px;justify-content:flex-end">
+        <button id="confirmPaid">Save</button>
+        <button class="ghost" id="cancelPaid">Close</button>
       </div>
     </div>
-  </dialog>
+  </div>
+</dialog>
 
-  <!-- Reset password dialog -->
-  <dialog id="resetDlg" style="border:0;border-radius:14px;padding:0;max-width:520px;width:calc(100% - 24px)">
-    <div class="card" style="border:0">
-      <h2 style="border:0">Reset password</h2>
-      <div class="pad">
-        <div class="row">
-          <div>
-            <label>Profile</label>
-            <select id="resetProfile"></select>
-          </div>
-          <div></div>
+<!-- Profiles dialog -->
+<dialog id="authDlg">
+  <div class="card">
+    <h2 style="padding:12px 16px;margin:0;border-bottom:1px solid var(--line)">Profiles</h2>
+    <div class="pad">
+      <div id="profileInfo" class="help">Current: Guest (no profile)</div>
+      <div class="row">
+        <div>
+          <label>Name</label>
+          <input id="profName" placeholder="e.g., Ben" />
         </div>
-        <div class="row">
-          <div>
-            <label>New password</label>
-            <input id="resetNewPass" type="password" />
-          </div>
-          <div>
-            <label>Confirm new password</label>
-            <input id="resetNewPass2" type="password" />
-          </div>
+        <div>
+          <label>Password</label>
+          <input id="profPass" type="password" placeholder="••••••••" />
         </div>
-        <div class="toolbar" style="margin-top:8px">
-          <button id="btnDoReset">Reset</button>
-          <button class="ghost" id="btnResetClose">Close</button>
-        </div>
-        <div class="help">Local-only reset: anyone with access to this browser can change these passwords.</div>
       </div>
+      <div class="toolbar" style="margin-top:8px">
+        <button id="btnCreateProfile">Create</button>
+        <button class="ghost" id="btnLoginProfile">Login</button>
+        <button class="ghost right" id="btnCloseAuth">Close</button>
+      </div>
+      <div style="margin-top:10px">
+        <div class="muted">Existing profiles (click to fill):</div>
+        <div id="profilesList" class="toolbar" style="margin-top:6px;flex-wrap:wrap"></div>
+      </div>
+      <div class="toolbar" style="margin-top:10px">
+        <button id="btnSignOut" class="destr">Sign out</button>
+      </div>
+      <div class="help">Local only; salted+hashed passwords.</div>
     </div>
-  </dialog>
+  </div>
+</dialog>
 
-  <script>
-  // ---------- Tiny helpers ----------
-  const $ = (sel)=>document.querySelector(sel);
-  const today = ()=>{ const d = new Date(); d.setHours(0,0,0,0); return d; };
-  const toISO = (d)=>{ if(!d) return ''; const x = (d instanceof Date)? d : new Date(d); const z = new Date(x.getTime()-x.getTimezoneOffset()*60000); return z.toISOString().slice(0,10); };
-  const addDays = (d, n)=>{ const x = new Date(d); x.setDate(x.getDate()+n); x.setHours(0,0,0,0); return x; };
-  const fmtMoney = (n)=> (n||0).toLocaleString(undefined,{style:'currency',currency:'USD'});
-  const uid = ()=> 'id_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(3);
-  const near = (a,b,eps)=> Math.abs(a-b) <= (eps||0);
+<!-- Reset password dialog -->
+<dialog id="resetDlg" style="border:0;border-radius:14px;padding:0;max-width:520px;width:calc(100% - 24px)">
+  <div class="card" style="border:0">
+    <h2 style="border:0">Reset password</h2>
+    <div class="pad">
+      <div class="row">
+        <div>
+          <label>Profile</label>
+          <select id="resetProfile"></select>
+        </div>
+        <div></div>
+      </div>
+      <div class="row">
+        <div>
+          <label>New password</label>
+          <input id="resetNewPass" type="password" />
+        </div>
+        <div>
+          <label>Confirm new password</label>
+          <input id="resetNewPass2" type="password" />
+        </div>
+      </div>
+      <div class="toolbar" style="margin-top:8px">
+        <button id="btnDoReset">Reset</button>
+        <button class="ghost" id="btnResetClose">Close</button>
+      </div>
+      <div class="help">Anyone with access to this browser can reset.</div>
+    </div>
+  </div>
+</dialog>
 
-  // ---------- Storage / DB ----------
-  let DB = { bills: [], txns: [] };
-  const BASE_KEY = 'billDB_v1';
-  let KEY = BASE_KEY;
-  const PROFILES_KEY = 'bb_profiles_v1';
-  const CURRENT_KEY = 'bb_current_profile';
+<script>
+/* ---------- Utilities ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const today = ()=>{ const d=new Date(); d.setHours(0,0,0,0); return d; };
+const toISO = d => { if(!d) return ''; const x=(d instanceof Date)?d:new Date(d); const z=new Date(x.getTime()-x.getTimezoneOffset()*60000); return z.toISOString().slice(0,10); };
+const addDays = (d,n)=>{ const x=new Date(d); x.setDate(x.getDate()+n); x.setHours(0,0,0,0); return x; };
+const addMonths = (d,n)=>{ const x=new Date(d); const day=x.getDate(); x.setMonth(x.getMonth()+n); if(x.getDate()<day){ x.setDate(0); } x.setHours(0,0,0,0); return x; };
+const addYears = (d,n)=>{ const x=new Date(d); x.setFullYear(x.getFullYear()+n); x.setHours(0,0,0,0); return x; };
+const fmtMoney = n => (n||0).toLocaleString(undefined,{style:'currency',currency:'USD'});
+const uid = ()=> 'id_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(3);
 
-  function saveDB(){ localStorage.setItem(KEY, JSON.stringify(DB)); }
-  function loadDB(){ try{ DB = JSON.parse(localStorage.getItem(KEY)) || DB; }catch(e){}
-    if(!DB.bills) DB.bills = [];
-    DB.bills.forEach(b=>{ if(b.subcategory===undefined) b.subcategory=''; if(b.overdue===undefined) b.overdue=0; if(b.balance===undefined) b.balance=0; if(b.portalUrl===undefined) b.portalUrl=''; });
-    renderAll();
-  }
+/* ---------- Storage / DB ---------- */
+let DB = { bills: [], txns: [] };
+const BASE_KEY = 'billDB_v1';
+let KEY = BASE_KEY;
+const PROFILES_KEY = 'bb_profiles_v1';
+const CURRENT_KEY = 'bb_current_profile';
 
-  // ---------- Reset password helpers (local only) ----------
-  function openResetDlg(){
-    const sel=document.querySelector('#resetProfile'); if(!sel) return;
-    sel.innerHTML='';
-    const list=getProfiles();
-    if(!list.length){ alert('No profiles found. Create one first.'); return; }
-    list.forEach(p=>{ const o=document.createElement('option'); o.value=p.name; o.textContent=p.name; sel.appendChild(o); });
-    document.querySelector('#resetNewPass').value='';
-    document.querySelector('#resetNewPass2').value='';
-    document.querySelector('#resetDlg').showModal();
-  }
-  async function doReset(){
-    const name=(document.querySelector('#resetProfile').value||'').trim();
-    const n1=document.querySelector('#resetNewPass').value;
-    const n2=document.querySelector('#resetNewPass2').value;
-    if(!name){ alert('Choose a profile'); return; }
-    if(!n1 || n1!==n2){ alert('Enter matching new passwords'); return; }
-    const list=getProfiles();
-    const p=list.find(x=>x.name===name);
-    if(!p){ alert('Profile not found'); return; }
-    const salt=makeSalt();
-    const hash=await passHash(n1, salt);
-    p.salt=salt; p.hash=hash;
-    saveProfiles(list);
-    alert('Password reset. You can now log in.');
-    document.querySelector('#resetDlg').close();
-  }
+function saveDB(){ localStorage.setItem(KEY, JSON.stringify(DB)); }
+function loadDB(){
+  try{ DB = JSON.parse(localStorage.getItem(KEY)) || DB; }catch(e){}
+  if(!DB.bills) DB.bills=[];
+  DB.bills.forEach(b=>{
+    if(b.subcategory===undefined) b.subcategory='';
+    if(b.overdue===undefined) b.overdue=0;
+    if(b.balance===undefined) b.balance=0;
+    if(b.balanceAsOf===undefined) b.balanceAsOf='';
+    if(b.portalUrl===undefined) b.portalUrl='';
+    if(b.cancelRequested===undefined) b.cancelRequested=false;
+  });
+  renderAll();
+}
 
-  // ---------- Profiles (local) ----------
-  function toB64(u){ let s=''; u.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
-  function fromB64(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
-  function makeSalt(len=16){ const u=new Uint8Array(len); if (crypto?.getRandomValues) crypto.getRandomValues(u); else for(let i=0;i<len;i++) u[i]=Math.random()*255; return toB64(u); }
-  async function passHash(password, saltB64){
-    try{
-      const te=new TextEncoder(); const salt=fromB64(saltB64); const pw=te.encode(password||'');
-      if (window.isSecureContext && crypto?.subtle?.digest){
-        const data=new Uint8Array(salt.length+pw.length); data.set(salt,0); data.set(pw,salt.length);
-        const buf=await crypto.subtle.digest('SHA-256', data); const arr=new Uint8Array(buf);
-        return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('');
-      } else {
-        // Fallback for file:// contexts
-        const s = atob(saltB64) + (password||''); let h = 0x811c9dc5>>>0;
-        for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
-        return h.toString(16).padStart(8,'0');
-      }
-    }catch(e){ console.error('passHash error', e); return '0'; }
-  }
-
-  function getProfiles(){ try{return JSON.parse(localStorage.getItem(PROFILES_KEY)||'[]')}catch(e){return []} }
-  function saveProfiles(list){ localStorage.setItem(PROFILES_KEY, JSON.stringify(list)); }
-  function getCurrentProfileId(){ return localStorage.getItem(CURRENT_KEY); }
-  function getCurrentProfile(){ const id=getCurrentProfileId(); if(!id) return null; return getProfiles().find(p=>p.id===id)||null; }
-  function profileKey(id){ return BASE_KEY+':'+id; }
-  function initProfiles(){ const pid=getCurrentProfileId(); KEY = pid? profileKey(pid) : BASE_KEY; }
-  function refreshProfileBadge(){ const p=getCurrentProfile(); $('#profileBadge').textContent = p? ('Profile: '+p.name) : 'Profile: Guest'; $('#btnProfile').textContent = p? ('Profile: '+p.name) : 'Profile'; }
-
-  async function createProfile(name, password){
-    name=(name||'').trim(); if(!name || !password){ alert('Enter name + password'); return; }
-    const list=getProfiles(); if(list.some(p=>p.name.toLowerCase()===name.toLowerCase())){ alert('Name already exists'); return; }
-    const salt=makeSalt(); const hash=await passHash(password, salt); const id=uid();
-    list.push({id,name,salt,hash,createdAt:new Date().toISOString()}); saveProfiles(list);
-    if(!localStorage.getItem(profileKey(id)) && localStorage.getItem(BASE_KEY)) localStorage.setItem(profileKey(id), localStorage.getItem(BASE_KEY));
-    localStorage.setItem(CURRENT_KEY, id); KEY = profileKey(id); loadDB(); refreshProfileBadge(); $('#authDlg').close();
-  }
-  async function loginProfile(name, password){
-    name=(name||'').trim(); const p=getProfiles().find(x=>x.name.toLowerCase()===name.toLowerCase()); if(!p){ alert('No such profile'); return; }
-    const hash=await passHash(password, p.salt); if(hash!==p.hash){ alert('Wrong password'); return; }
-    localStorage.setItem(CURRENT_KEY, p.id); KEY = profileKey(p.id); loadDB(); refreshProfileBadge(); $('#authDlg').close();
-  }
-  function signOutProfile(){ localStorage.removeItem(CURRENT_KEY); KEY = BASE_KEY; loadDB(); refreshProfileBadge(); document.body.classList.remove('auth'); $('#authDlg').close(); }
-  function openProfileDlg(){ const dlg=$('#authDlg'); const list=getProfiles(); const wrap=$('#profilesList'); if(wrap){wrap.innerHTML=''; list.forEach(p=>{const b=document.createElement('button'); b.className='ghost'; b.textContent=p.name; b.onclick=()=>{ $('#profName').value=p.name; $('#profPass').focus(); }; wrap.appendChild(b);});}
-    const cur=getCurrentProfile(); const info=$('#profileInfo'); if(info) info.textContent = cur? ('Current: '+cur.name) : 'Current: Guest (no profile)'; dlg.showModal(); }
-
-  // ---------- Auth gating (landing) ----------
-  (function(){
-    function loggedIn(){ return !!getCurrentProfileId(); }
-    function showApp(){ document.body.classList.add('auth'); }
-    function showWelcome(){ document.body.classList.remove('auth'); }
-    async function doCreate(e){ e?.preventDefault?.(); const n=$('#wName')?.value||''; const p=$('#wPass')?.value||''; await createProfile(n,p); showApp(); }
-    async function doLogin(e){ e?.preventDefault?.(); const n=$('#wName')?.value||''; const p=$('#wPass')?.value||''; await loginProfile(n,p); showApp(); }
-    document.addEventListener('DOMContentLoaded', ()=>{
-      $('#wCreate')?.addEventListener('click', doCreate);
-      $('#wLogin')?.addEventListener('click', doLogin);
-      $('#wPass')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ doLogin(e); } });
-      if (loggedIn()) showApp(); else showWelcome();
-    });
-    // ensure signout returns to welcome
-    const oldSO = window.signOutProfile; window.signOutProfile = function(){ try{localStorage.removeItem(CURRENT_KEY);}catch(e){} if(typeof oldSO==='function') oldSO(); document.body.classList.remove('auth'); };
-  })();
-
-  // ---------- Status & scheduling ----------
-  function nextDueFrom(b, fromDate){
-    const base = new Date(fromDate||b.anchor||today()); base.setHours(0,0,0,0);
-    switch(b.frequency){
-      case 'weekly': return addDays(base, 7);
-      case 'quarterly': return addDays(base, 91);
-      case 'yearly': return addDays(base, 365);
-      case 'custom': return addDays(base, Math.max(1, +b.customDays||30));
-      case 'monthly': default: return addDays(base, 30);
+/* ---------- Profiles (hashed) ---------- */
+function toB64(u){ let s=''; u.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
+function fromB64(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
+function makeSalt(len=16){ const u=new Uint8Array(len); if(crypto?.getRandomValues) crypto.getRandomValues(u); else for(let i=0;i<len;i++) u[i]=Math.random()*255; return toB64(u); }
+async function passHash(password, saltB64){
+  try{
+    const te=new TextEncoder(); const salt=fromB64(saltB64); const pw=te.encode(password||'');
+    if(window.isSecureContext && crypto?.subtle?.digest){
+      const data=new Uint8Array(salt.length+pw.length); data.set(salt,0); data.set(pw,salt.length);
+      const buf=await crypto.subtle.digest('SHA-256', data); const arr=new Uint8Array(buf);
+      return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('');
+    } else {
+      const s=atob(saltB64)+(password||''); let h=0x811c9dc5>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=(h*16777619)>>>0; } return h.toString(16).padStart(8,'0');
     }
-  }
-  function statusFor(b){
-    let due = b.nextDue ? new Date(b.nextDue) : (b.anchor? new Date(b.anchor) : today());
-    due.setHours(0,0,0,0);
-    const t = today();
-    let code='future', label='Future', cls='ok';
-    if (due < t) { code='overdue'; label='Overdue'; cls='over'; }
-    else if ((due - t)/(86400000) <= 7) { code='due'; label='Due soon'; cls='due'; }
-    return {code, label, cls, due};
-  }
-  function periodKey(b){
-    const due = nextDueFrom(b);
-    return (b.frequency||'monthly') + ':' + toISO(due);
-  }
+  }catch{ return '0'; }
+}
+function getProfiles(){ try{return JSON.parse(localStorage.getItem(PROFILES_KEY)||'[]')}catch{return []} }
+function saveProfiles(list){ localStorage.setItem(PROFILES_KEY, JSON.stringify(list)); }
+function getCurrentProfileId(){ return localStorage.getItem(CURRENT_KEY); }
+function getCurrentProfile(){ const id=getCurrentProfileId(); if(!id) return null; return getProfiles().find(p=>p.id===id)||null; }
+function profileKey(id){ return BASE_KEY+':'+id; }
+function initProfiles(){ const pid=getCurrentProfileId(); KEY = pid? profileKey(pid) : BASE_KEY; }
+function refreshProfileBadge(){ const p=getCurrentProfile(); $('#profileBadge').textContent = p? ('Profile: '+p.name) : 'Profile: Guest'; $('#btnProfile').textContent = p? ('Profile: '+p.name) : 'Profile'; }
 
-  // ---------- Rendering ----------
-  function renderPayLog(){
-    const tbody=$('#payLogRows'); if(!tbody) return; tbody.innerHTML='';
-    const rows=[...DB.txns].sort((a,b)=> new Date(b.date)-new Date(a.date));
-    rows.forEach(tx=>{ const bill=DB.bills.find(bb=>bb.id===tx.billId); const tr=document.createElement('tr'); tr.innerHTML=`<td class="mono">${toISO(tx.date)}</td><td>${bill?bill.name:'(deleted bill)'}</td><td class="mono">${fmtMoney(+tx.amount||0)}</td><td>${tx.memo||''}</td>`; tbody.appendChild(tr); });
-  }
-  function monthlyEq(b){ const amt=+b.amount||0; switch(b.frequency){ case 'yearly': return amt/12; case 'quarterly': return amt/3; case 'weekly': return amt*52/12; case 'custom': return amt*(30.4375/Math.max(1,+b.customDays||30)); default: return amt; } }
-  function renderSummary(){ const tbody=$('#summaryRows'); if(!tbody) return; tbody.innerHTML=''; DB.bills.forEach(b=>{ const st=statusFor(b); const isCurrent=((+b.overdue||0)<=0 && (+b.balance||0)<=0); const tr=document.createElement('tr'); tr.className = isCurrent? 'currentRow' : (st.code==='overdue' ? 'pastDueRow' : ''); tr.innerHTML = `<td><strong>${b.name||''}</strong></td><td>${b.category||''}</td><td>${b.subcategory||''}</td><td class="mono">${fmtMoney(monthlyEq(b))}</td><td class="mono">${fmtMoney(+b.overdue||0)}</td><td class="mono">${fmtMoney(+b.balance||0)}</td><td>${toISO(st.due)}</td><td>${isCurrent ? (b.currentAsOf ? 'Current • '+toISO(b.currentAsOf) : 'Current') : st.label}</td>`; tbody.appendChild(tr); }); }
-  function renderKPIs(){
-    const t = today();
-    const catSel = $('#filterCat') ? $('#filterCat').value : 'all';
-    const stSel = $('#filterStatus') ? $('#filterStatus').value : 'any';
+async function createProfile(name,password){
+  name=(name||'').trim(); if(!name||!password){ alert('Enter name + password'); return; }
+  const list=getProfiles(); if(list.some(p=>p.name.toLowerCase()===name.toLowerCase())){ alert('Name already exists'); return; }
+  const salt=makeSalt(); const hash=await passHash(password,salt); const id=uid();
+  list.push({id,name,salt,hash,createdAt:new Date().toISOString()}); saveProfiles(list);
+  if(!localStorage.getItem(profileKey(id)) && localStorage.getItem(BASE_KEY)) localStorage.setItem(profileKey(id), localStorage.getItem(BASE_KEY));
+  localStorage.setItem(CURRENT_KEY, id); KEY=profileKey(id); loadDB(); refreshProfileBadge(); $('#authDlg').close(); document.body.classList.add('auth');
+}
+async function loginProfile(name,password){
+  name=(name||'').trim(); const p=getProfiles().find(x=>x.name.toLowerCase()===name.toLowerCase()); if(!p){ alert('No such profile'); return; }
+  const hash=await passHash(password,p.salt); if(hash!==p.hash){ alert('Wrong password'); return; }
+  localStorage.setItem(CURRENT_KEY,p.id); KEY=profileKey(p.id); loadDB(); refreshProfileBadge(); $('#authDlg').close(); document.body.classList.add('auth');
+}
+function signOutProfile(){ localStorage.removeItem(CURRENT_KEY); KEY=BASE_KEY; loadDB(); refreshProfileBadge(); document.body.classList.remove('auth'); $('#authDlg').close(); }
 
-    let overdueCnt = 0, dueAmt = 0, monthTotal = 0, paidTotal = 0, totOverdue = 0, totBalance = 0;
+/* Reset password helpers */
+function openResetDlg(){
+  const sel=$('#resetProfile'); if(!sel) return;
+  sel.innerHTML='';
+  const list=getProfiles(); if(!list.length){ alert('No profiles found. Create one first.'); return; }
+  list.forEach(p=>{ const o=document.createElement('option'); o.value=p.name; o.textContent=p.name; sel.appendChild(o); });
+  $('#resetNewPass').value=''; $('#resetNewPass2').value=''; $('#resetDlg').showModal();
+}
+async function doReset(){
+  const name=($('#resetProfile').value||'').trim();
+  const n1=$('#resetNewPass').value, n2=$('#resetNewPass2').value;
+  if(!name){ alert('Choose a profile'); return; }
+  if(!n1 || n1!==n2){ alert('Enter matching new passwords'); return; }
+  const list=getProfiles(); const p=list.find(x=>x.name===name); if(!p){ alert('Profile not found'); return; }
+  const salt=makeSalt(); const hash=await passHash(n1,salt); p.salt=salt; p.hash=hash; saveProfiles(list);
+  alert('Password reset. You can now log in.'); $('#resetDlg').close();
+}
 
-    const bills = DB.bills.filter(b=> (catSel==='all' || b.category===catSel));
-
-    bills.forEach(b=>{
-      const st = statusFor(b);
-      const amt = +b.amount||0;
-      const due = st.due;
-      if(stSel==='any' || st.code===stSel){
-        if(st.code==='overdue') overdueCnt++;
-        if(st.code==='due') dueAmt += amt;
-      }
-      if(due.getMonth()===t.getMonth() && due.getFullYear()===t.getFullYear()) monthTotal += amt;
-      totOverdue += (+b.overdue||0);
-      totBalance += (+b.balance||0);
-    });
-
-    DB.txns.forEach(tx=>{
-      const d = new Date(tx.date);
-      if(d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear()){
-        const b = DB.bills.find(bb=>bb.id===tx.billId);
-        if(b && (catSel==='all' || b.category===catSel)) paidTotal += (+tx.amount||0);
-      }
-    });
-
-    $('#kOverdue').textContent = overdueCnt;
-    $('#kDue').textContent = fmtMoney(dueAmt);
-    $('#kMonth').textContent = fmtMoney(monthTotal);
-    $('#kPaid').textContent = fmtMoney(paidTotal);
-    $('#kTotOverdue').textContent = fmtMoney(totOverdue);
-    $('#kTotBalance').textContent = fmtMoney(totBalance);
-  }
-
-  function renderTable(){
-    const tbody = $('#billRows'); if(!tbody) return; tbody.innerHTML='';
-    const q = ($('#search')?.value||'').toLowerCase();
-    const cat = $('#filterCat')?.value || 'all';
-    const stf = $('#filterStatus')?.value || 'any';
-    const sortBy = $('#sortBy')?.value || 'due';
-    const useMonthly = $('#viewMonthlyEq')?.checked || false;
-
-    const amountFor = (b)=>{
-      const amt = +b.amount||0;
-      if(!useMonthly) return amt;
-      switch(b.frequency){
-        case 'yearly': return amt/12;
-        case 'quarterly': return amt/3;
-        case 'weekly': return amt*52/12;
-        case 'custom': return amt * (30.4375 / Math.max(1, +b.customDays||30));
-        case 'monthly': default: return amt;
-      }
-    };
-
-    DB.bills
-      .filter(b=>!q || (b.name||'').toLowerCase().includes(q) || (b.subcategory||'').toLowerCase().includes(q) || (b.notes||'').toLowerCase().includes(q))
-      .filter(b=>cat==='all' || b.category===cat)
-      .sort((a,b)=>{
-        if(sortBy==='amountAsc') return amountFor(a) - amountFor(b);
-        if(sortBy==='amountDesc') return amountFor(b) - amountFor(a);
-        return new Date(statusFor(a).due) - new Date(statusFor(b).due);
-      })
-      .forEach(bill=>{
-        const st = statusFor(bill);
-        if(stf!=='any' && st.code!==stf) return;
-        const tr = document.importNode($('#rowTmpl').content,true);
-        tr.querySelector('.nm').textContent = bill.name||'';
-        tr.querySelector('.kw').textContent = bill.notes||'';
-        tr.querySelector('.cur').textContent = bill.currentAsOf ? ('Current as of '+toISO(bill.currentAsOf)) : '';
-        tr.querySelector('.ct').textContent = bill.category||'';
-        tr.querySelector('.sc').textContent = bill.subcategory||'';
-        tr.querySelector('.am').textContent = fmtMoney(amountFor(bill));
-        tr.querySelector('.ov').textContent = fmtMoney(+bill.overdue||0);
-        tr.querySelector('.ba').textContent = fmtMoney(+bill.balance||0);
-        tr.querySelector('.du').textContent = toISO(st.due);
-        const stEl = tr.querySelector('.st');
-        const span = document.createElement('span'); span.className = 'chip '+(st.cls); span.textContent = st.label; stEl.appendChild(span);
-        tr.querySelector('.btnEdit').onclick = ()=> fillForm(bill);
-        const pb = tr.querySelector('.btnPortal');
-        if(bill.portalUrl){ pb.onclick = ()=> window.open(bill.portalUrl, '_blank'); }
-        else { pb.disabled = true; pb.title = 'No portal URL set'; }
-        tr.querySelector('.btnCurrent').onclick = ()=> markCurrent(bill);
-        tr.querySelector('.btnPartial').onclick = ()=> openPartial(bill);
-        tbody.appendChild(tr);
-      });
-  }
-
-  function renderAll(){ renderKPIs(); renderTable(); renderPayLog(); renderSummary(); }
-
-  // ---------- Bill form ----------
-  let editingId = null;
-  function fillForm(b){
-    editingId = b.id;
-    $('#name').value=b.name||'';
-    $('#category').value=b.category||'Household';
-    $('#subcategory').value=b.subcategory||'';
-    $('#amount').value=b.amount||'';
-    $('#frequency').value=b.frequency||'monthly';
-    $('#anchor').value=b.anchor||toISO(today());
-    $('#customDays').value=b.customDays||'';
-    $('#autopay').value=b.autopay||'no';
-    $('#account').value=b.account||'';
-    $('#notes').value=b.notes||'';
-    $('#portalUrl').value=b.portalUrl||'';
-    $('#overdue').value=(b.overdue!=null? b.overdue : '');
-    $('#balance').value=(b.balance!=null? b.balance : '');
-    $('#billDlg').showModal();
-  }
-  function blankForm(){ editingId=null; ['name','subcategory','amount','anchor','customDays','account','notes','portalUrl','overdue','balance'].forEach(id=>{$('#'+id).value='';}); $('#category').value='Household'; $('#frequency').value='monthly'; $('#autopay').value='no'; $('#billDlg').showModal(); }
-
-  $('#saveBill').addEventListener('click', ()=>{
-    const b = {
-      id: editingId || uid(),
-      name: $('#name').value, category: $('#category').value, subcategory: $('#subcategory').value,
-      amount: +$('#amount').value||0, frequency: $('#frequency').value, anchor: $('#anchor').value||toISO(today()), customDays: +$('#customDays').value||0,
-      autopay: $('#autopay').value, account: $('#account').value, notes: $('#notes').value, portalUrl: ($('#portalUrl').value||'').trim(),
-      overdue: +$('#overdue').value||0, balance: +$('#balance').value||0
-    };
-    const idx = DB.bills.findIndex(x=>x.id===b.id);
-    if(idx>=0) DB.bills[idx]=b; else DB.bills.push(b);
-    saveDB(); renderAll(); $('#billDlg').close();
-  });
-  $('#cancelBill').addEventListener('click', ()=> $('#billDlg').close());
-
-  // ---------- Payment flow ----------
-  let activeBill = null;
-  function openPartial(b){ activeBill = b; $('#payDate').value = toISO(today()); $('#payAmt').value = ''; $('#payMemo').value=''; $('#paidReduceBalance').checked=true; $('#payDlg').showModal(); }
-  function markCurrent(b){
-    const st = statusFor(b); const d = toISO(today());
-    DB.txns.push({ id: uid(), billId: b.id, date: d, amount: +b.amount||0, memo: 'Marked current', periodKey: periodKey(b) });
-    b.lastPaid = d; b.nextDue = toISO(nextDueFrom(b, addDays(st.due,1)));
-    b.overdue = 0; b.balance = 0; b.currentAsOf = d;
-    saveDB(); renderAll();
-  }
-  $('#confirmPaid').addEventListener('click', ()=>{
-    if(!activeBill) return; const d=$('#payDate').value||toISO(today()); const amt= +$('#payAmt').value||0; const memo=$('#payMemo').value||'Partial payment';
-    DB.txns.push({ id: uid(), billId: activeBill.id, date: d, amount: amt, memo, periodKey: periodKey(activeBill) });
-    activeBill.lastPaid = d;
-    activeBill.overdue = Math.max(0, (+activeBill.overdue||0) - amt);
-    if($('#paidReduceBalance').checked){ activeBill.balance = Math.max(0, (+activeBill.balance||0) - amt); }
-    if((+activeBill.overdue||0)===0 && (+activeBill.balance||0)===0){ activeBill.currentAsOf = d; }
-    saveDB(); renderAll(); $('#payDlg').close();
-  });
-  $('#cancelPaid').addEventListener('click', ()=> $('#payDlg').close());
-
-  // ---------- Filters/search/sort ----------
-  $('#search').addEventListener('input', renderTable);
-  $('#filterCat').addEventListener('change', ()=>{ renderTable(); renderKPIs(); });
-  $('#filterStatus').addEventListener('change', ()=>{ renderTable(); renderKPIs(); });
-  $('#sortBy').addEventListener('change', renderTable);
-  $('#viewMonthlyEq').addEventListener('change', renderTable);
-  $('#btnAdd').addEventListener('click', blankForm);
-
-  // ---------- CSV import + auto-reconcile ----------
-  function parseCSV(txt){
-    const rows = txt.split(/\r?\n/).map(l=>l.split(','));
-    return rows.filter(r=>r.length && r.some(c=>c!==''));
-  }
-  function indexCols(h){ const idx={}; h.forEach((x,i)=>idx[x]=i); return idx; }
-  function reconcileTransactions(txList){
-    const before = DB.txns.length; const tday=today();
-    txList.forEach(tx=>{
-      if(!tx || !tx.date) return; const tdate = new Date(tx.date); tdate.setHours(0,0,0,0);
-      const candidates = DB.bills.map(b=>({b,st:statusFor(b)})).filter(x=>{
-        const due=x.st.due; const days=Math.abs((due - tdate)/86400000);
-        const kw=((x.b.notes||'')+' '+(x.b.name||'')).toLowerCase(); const d=(tx.description||'').toLowerCase();
-        return days<=5 && near(+x.b.amount||0, +tx.amount||0, 1) && (!kw || kw.split(/[, ]+/).some(k=>k && d.includes(k.trim())));
-      });
-      if(candidates.length){
-        const {b,st} = candidates[0];
-        DB.txns.push({ id: uid(), billId: b.id, date: toISO(tx.date), amount: +tx.amount||0, memo: tx.memo||tx.description||'', periodKey: periodKey(b) });
-        b.lastPaid = toISO(tx.date); b.nextDue = toISO(nextDueFrom(b, addDays(st.due,1)));
-        b.overdue = Math.max(0, (+b.overdue||0) - (+tx.amount||0));
-      }
-    });
-    saveDB(); renderAll();
-    return DB.txns.length - before;
-  }
-
-  $('#csvFile').addEventListener('change', async e=>{
-    const f=e.target.files[0]; if(!f) return; const txt=await f.text();
-    const rows=parseCSV(txt); if(!rows.length){ alert('No rows found'); return; }
-    const idx = indexCols(rows[0]);
-    const newTx=[]; for(let i=1;i<rows.length;i++){
-      const r=rows[i]; if(!r || !r.length) continue;
-      const date=r[idx.date]||r[idx.Date]||r[0];
-      const desc=r[idx.description]||r[idx.Description]||r[1]||'';
-      let amt=r[idx.amount]||r[idx.Amount]||r[2]||'0'; amt= +String(amt).replace(/[^-\d.]/g,'');
-      const account=r[idx.account]||r[idx.Account]||'';
-      newTx.push({id:uid(),date:toISO(date),description:desc,amount:amt,account});
-    }
-    const matched = reconcileTransactions(newTx);
-    alert(`Imported ${newTx.length} transactions and reconciled ${matched} bills.`);
-    e.target.value='';
-  });
-
-  // ---------- Plaid Link (frontend stub) ----------
-  const API_BASE = '';
-  async function plaidConnect(){
-    try{
-      if(!window.Plaid){ alert('Plaid SDK failed to load.'); return; }
-      const res = await fetch(API_BASE + '/api/create_link_token', {method:'POST'});
-      if(!res.ok){ alert('Could not create Link token'); return; }
-      const {link_token} = await res.json();
-      const handler = window.Plaid.create({
-        token: link_token,
-        onSuccess: async (public_token)=>{
-          try{
-            const ex = await fetch(API_BASE + '/api/exchange_public_token', {
-              method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ public_token })
-            });
-            if(ex.ok){ $('#plaidStatus').textContent = 'Linked ✅'; }
-            else { $('#plaidStatus').textContent = 'Link error'; }
-          }catch(err){ console.error(err); $('#plaidStatus').textContent = 'Link failed'; }
-        },
-        onExit: (err)=>{ if(err) console.warn('Plaid exit', err); }
-      });
-      handler.open();
-    }catch(e){ console.error(e); alert('Plaid connect failed'); }
-  }
-  function isoDaysAgo(n){ const d=new Date(); d.setDate(d.getDate()-Math.max(1, +n||30)); return toISO(d); }
-  async function plaidSync(){
-    try{
-      const days = $('#plaidSince')?.value || 30; const since = isoDaysAgo(days);
-      const res = await fetch(API_BASE + '/api/transactions?since='+since);
-      if(!res.ok){ alert('Sync failed. Is the bank linked?'); return; }
-      const data = await res.json();
-      const txs = (data.transactions||[]).map(t=>({ id: uid(), date: toISO(t.date), description: t.description || t.name || '', amount: Math.abs(+t.amount||0), account: t.account || t.account_id || '' }));
-      const matched = reconcileTransactions(txs);
-      alert(`Fetched ${txs.length} transactions; reconciled ${matched} bills.`);
-    }catch(e){ console.error(e); alert('Sync error'); }
-  }
-  $('#btnPlaidLink').addEventListener('click', plaidConnect);
-  $('#btnPlaidSync').addEventListener('click', plaidSync);
-
-  // ---------- Email Bill Capture (frontend stub) ----------
-  $('#btnGmail').addEventListener('click', ()=>{ window.location.href = API_BASE + '/auth/gmail/start'; });
-  $('#btnOutlook').addEventListener('click', ()=>{ window.location.href = API_BASE + '/auth/outlook/start'; });
-  $('#btnMailScan').addEventListener('click', scanInbox);
-
-  function matchBillByVendor(vendor){
-    const v=(vendor||'').toLowerCase(); if(!v) return null;
-    const byNotes = DB.bills.find(b=> (b.notes||'').toLowerCase().split(/[, ]+/).some(k=>k && v.includes(k.trim())));
-    if(byNotes) return byNotes;
-    const byName = DB.bills.find(b=> (b.name||'').toLowerCase().includes(v));
-    return byName || null;
-  }
-  function applyEmailBillUpdates(items){
-    let updated=0; const seen=new Set();
-    items.forEach(it=>{
-      const b = matchBillByVendor(it.vendor || it.from || it.sender || ''); if(!b) return;
-      let changed=false; if(it.amountDue && +it.amountDue>0){ b.amount = +it.amountDue; changed=true; }
-      if(it.dueDate){ b.anchor = toISO(it.dueDate); b.nextDue=undefined; changed=true; }
-      if(changed){ b.lastVendorUpdate = {provider: it.provider||'mail', at: toISO(new Date()), ref: it.ref||it.messageId||'', memo: (it.subject||'')}; updated++; seen.add(b.id); }
-    });
-    if(updated){ saveDB(); renderAll(); }
-    return {updated, count: seen.size};
-  }
-  async function scanInbox(){
-    try{
-      const days = +($('#mailSince')?.value||45); const since = isoDaysAgo(days);
-      $('#mailStatus').textContent = 'Scanning…';
-      const res = await fetch(API_BASE + '/api/mail/fetch?since='+since);
-      if(!res.ok){ $('#mailStatus').textContent = 'Not connected or fetch failed'; return; }
-      const data = await res.json(); const items = data.items || data.bills || [];
-      const {updated} = applyEmailBillUpdates(items);
-      $('#mailStatus').textContent = `Scanned ${items.length} items; updated ${updated} bills.`;
-      alert(`Scanned ${items.length} emails; updated ${updated} bills.`);
-    }catch(e){ console.error(e); $('#mailStatus').textContent = 'Scan error'; }
-  }
-
-  // ---------- Seed recommended bills ----------
-  function seedRecommended(){
-    const seed=[
-      {name:'Mortgage', category:'Household', subcategory:'Housing', amount:2100, frequency:'monthly', anchor: toISO(today()), notes:'mortgage home bank escrow', overdue:0, balance:0},
-      {name:'Electric (Utility)', category:'Household', subcategory:'Utilities', amount:160, frequency:'monthly', anchor: toISO(today()), notes:'electric entergy txu', overdue:0, balance:0},
-      {name:'Internet (Spectrum)', category:'Household', subcategory:'Internet', amount:85, frequency:'monthly', anchor: toISO(today()), notes:'spectrum internet charter', overdue:0, balance:0},
-      {name:'Cell Phones', category:'Household', subcategory:'Phone', amount:180, frequency:'monthly', anchor: toISO(today()), notes:'verizon att t-mobile', overdue:0, balance:0},
-      {name:'Office Rent', category:'Business', subcategory:'Office', amount:1400, frequency:'monthly', anchor: toISO(today()), notes:'lease office rent', overdue:0, balance:0},
-      {name:'Malpractice Insurance', category:'Business', subcategory:'Insurance', amount:1200, frequency:'yearly', anchor: toISO(today()), notes:'insurance malpractice', overdue:0, balance:0},
-      {name:'Google Workspace', category:'Business', subcategory:'SaaS', amount:36, frequency:'monthly', anchor: toISO(today()), notes:'google workspace gsuite', overdue:0, balance:0},
-      {name:'QuickBooks Online', category:'Business', subcategory:'Accounting', amount:90, frequency:'monthly', anchor: toISO(today()), notes:'quickbooks intuit', overdue:0, balance:0}
-    ];
-    seed.forEach(s=>{ s.id=uid(); });
-    DB.bills = DB.bills.concat(seed);
-    saveDB(); renderAll();
-  }
-
-  // ---------- Header buttons ----------
-  $('#btnProfile').addEventListener('click', openProfileDlg);
-  $('#btnCreateProfile').addEventListener('click', async ()=>{ await createProfile($('#profName').value, $('#profPass').value); });
-  $('#btnLoginProfile').addEventListener('click', async ()=>{ await loginProfile($('#profName').value, $('#profPass').value); });
-  $('#btnSignOut').addEventListener('click', signOutProfile);
-  $('#btnCloseAuth').addEventListener('click', ()=> $('#authDlg').close());
-  $('#addSample').addEventListener('click', seedRecommended);
-  $('#clearAll').addEventListener('click', ()=>{ if(confirm('Reset all data for this profile?')){ DB={bills:[], txns:[]}; saveDB(); renderAll(); }});
-
-  // Nav buttons
-  function showSection(which){
-    $('#dashboardSection')?.classList.add('hidden');
-    $('#payLogSection')?.classList.add('hidden');
-    $('#summarySection')?.classList.add('hidden');
-    if(which==='dashboard') $('#dashboardSection')?.classList.remove('hidden');
-    if(which==='paylog'){ $('#payLogSection')?.classList.remove('hidden'); renderPayLog(); }
-    if(which==='summary'){ $('#summarySection')?.classList.remove('hidden'); renderSummary(); }
-  }
-  $('#btnDash')?.addEventListener('click', ()=> showSection('dashboard'));
-  $('#btnPayLog')?.addEventListener('click', ()=> showSection('paylog'));
-  $('#btnSummary')?.addEventListener('click', ()=> showSection('summary'));
-
-  // ---------- Export CSV ----------
-  $('#btnExport').addEventListener('click', ()=>{
-    const rows = [['name','category','subcategory','amount','overdue','balance','frequency','anchor','autopay','account','notes','portalUrl']];
-    rows.push(...DB.bills.map(b=>[b.name,b.category,b.subcategory,b.amount,(+b.overdue||0),(+b.balance||0),b.frequency,b.anchor,b.autopay,b.account,b.notes,b.portalUrl||'']));
-    const csv = rows.map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download='bills.csv'; a.click(); URL.revokeObjectURL(url);
-  });
-
-  // Hook up reset dialog events
+/* ---------- Auth gating on landing ---------- */
+(function(){
+  function loggedIn(){ return !!getCurrentProfileId(); }
+  async function doCreate(e){ e?.preventDefault?.(); await createProfile($('#wName').value||'', $('#wPass').value||''); }
+  async function doLogin(e){ e?.preventDefault?.(); await loginProfile($('#wName').value||'', $('#wPass').value||''); }
   document.addEventListener('DOMContentLoaded', ()=>{
-    document.querySelector('#wForgot')?.addEventListener('click', openResetDlg);
-    document.querySelector('#btnDoReset')?.addEventListener('click', doReset);
-    document.querySelector('#btnResetClose')?.addEventListener('click', ()=> document.querySelector('#resetDlg').close());
+    $('#wCreate')?.addEventListener('click', doCreate);
+    $('#wLogin')?.addEventListener('click', doLogin);
+    $('#wPass')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ doLogin(e); } });
+    $('#wForgot')?.addEventListener('click', openResetDlg);
+    $('#btnDoReset')?.addEventListener('click', doReset);
+    $('#btnResetClose')?.addEventListener('click', ()=> $('#resetDlg').close());
+    if(loggedIn()) document.body.classList.add('auth'); else document.body.classList.remove('auth');
   });
+})();
 
-  // ---------- Init ----------
-  initProfiles();
-  loadDB();
-  refreshProfileBadge();
+/* ---------- Scheduling & Status ---------- */
+function nextDueFrom(b, fromDate){
+  let due = b.nextDue ? new Date(b.nextDue) : (b.anchor ? new Date(b.anchor) : today());
+  if(isNaN(due)) due = today();
+  const base = new Date(fromDate || today()); base.setHours(0,0,0,0);
+  const step = ()=>{
+    switch(b.frequency){
+      case 'weekly':    due = addDays(due,7); break;
+      case 'monthly':   due = addMonths(due,1); break;
+      case 'quarterly': due = addMonths(due,3); break;
+      case 'yearly':    due = addYears(due,1); break;
+      case 'custom':    due = addDays(due, Math.max(1,+b.customDays||30)); break;
+      default:          due = addMonths(due,1);
+    }
+  };
+  while(due < base) step();
+  return due;
+}
+function periodKey(b){ const due = nextDueFrom(b); return (b.frequency||'monthly')+':'+toISO(due); }
+function statusFor(b){
+  const due = nextDueFrom(b);
+  const t = today();
+  if(b.cancelRequested) return { code:'cancel', label:'Cancel pending', cls:'pend', due };
+  if((+b.overdue||0)===0 && (+b.balance||0)===0 && b.currentAsOf) return { code:'current', label:'Current', cls:'ok', due };
+  if(due < t) return { code:'overdue', label:'Overdue', cls:'over', due };
+  if((due - t)/86400000 <= 7) return { code:'due', label: b.autopay==='yes' ? 'Due soon (autopay)' : 'Due soon', cls:'due', due };
+  return { code:'future', label:'Future', cls:'ok', due };
+}
 
-  // Landing auth handled in the earlier IIFE (adds body.auth if logged in)
+/* ---------- Rendering ---------- */
+function renderPayLog(){
+  const tbody=$('#payLogRows'); if(!tbody) return; tbody.innerHTML='';
+  const rows=[...DB.txns].sort((a,b)=> new Date(b.date)-new Date(a.date));
+  rows.forEach(tx=>{
+    const bill=DB.bills.find(bb=>bb.id===tx.billId);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="mono">${toISO(tx.date)}</td><td>${bill?bill.name:'(deleted bill)'}</td><td class="mono">${fmtMoney(+tx.amount||0)}</td><td>${tx.memo||''}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+function monthlyEq(b){
+  const amt=+b.amount||0;
+  switch(b.frequency){
+    case 'yearly': return amt/12;
+    case 'quarterly': return amt/3;
+    case 'weekly': return amt*52/12;
+    case 'custom': return amt*(30.4375/Math.max(1,+b.customDays||30));
+    default: return amt;
+  }
+}
+function renderChart(){
+  const canvas=$('#chartCanvas'); if(!canvas) return; const ctx=canvas.getContext('2d');
+  const metric=$('#chartMetric')?.value||'balance';
+  const cat=$('#chartCat')?.value||'all';
+  let list = DB.bills.filter(b=> cat==='all' || b.category===cat)
+    .map(b=>({ name:b.name||'', value:+b[metric]||0 }))
+    .filter(x=>x.value>0)
+    .sort((a,b)=> b.value-a.value);
+  const wrap=canvas.parentElement; const width=Math.max(600, wrap.clientWidth-16);
+  const barH=22, gap=8, padL=180, padR=40, padT=20, padB=20;
+  canvas.width=width; canvas.height=padT+padB+list.length*(barH+gap);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const max=Math.max(1, ...list.map(d=>d.value)); ctx.font='12px system-ui'; ctx.textBaseline='middle';
+  list.forEach((row,i)=>{
+    const y=padT+i*(barH+gap);
+    const w=(width-padL-padR)*(row.value/max);
+    ctx.fillStyle='#e5e7eb'; ctx.fillRect(padL,y,(width-padL-padR),barH);
+    ctx.fillStyle='#0ea5e9'; ctx.fillRect(padL,y,w,barH);
+    ctx.fillStyle='#111827'; ctx.fillText(row.name,10,y+barH/2);
+    ctx.fillText(fmtMoney(row.value), padL+w+6, y+barH/2);
+  });
+}
+function renderKPIs(){
+  const t=today();
+  const catSel = $('#filterCat') ? $('#filterCat').value : 'all';
+  const stSel = $('#filterStatus') ? $('#filterStatus').value : 'any';
+  let overdueCnt=0, dueAmt=0, monthTotal=0, paidTotal=0, totOverdue=0, totBalance=0;
+  const bills=DB.bills.filter(b=> (catSel==='all'||b.category===catSel));
+  bills.forEach(b=>{
+    const st=statusFor(b); const amt=+b.amount||0; const due=st.due;
+    if(stSel==='any' || st.code===stSel){ if(st.code==='overdue') overdueCnt++; if(st.code==='due') dueAmt+=amt; }
+    if(due.getMonth()===t.getMonth() && due.getFullYear()===t.getFullYear()) monthTotal+=amt;
+    totOverdue+=(+b.overdue||0); totBalance+=(+b.balance||0);
+  });
+  DB.txns.forEach(tx=>{
+    const d=new Date(tx.date);
+    if(d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear()){
+      const b=DB.bills.find(bb=>bb.id===tx.billId);
+      if(b && (catSel==='all' || b.category===catSel)) paidTotal+=(+tx.amount||0);
+    }
+  });
+  $('#kOverdue').textContent=overdueCnt;
+  $('#kDue').textContent=fmtMoney(dueAmt);
+  $('#kMonth').textContent=fmtMoney(monthTotal);
+  $('#kPaid').textContent=fmtMoney(paidTotal);
+  $('#kTotOverdue').textContent=fmtMoney(totOverdue);
+  $('#kTotBalance').textContent=fmtMoney(totBalance);
+}
+function renderTable(){
+  const tbody=$('#billRows'); if(!tbody) return; tbody.innerHTML='';
+  const q=($('#search')?.value||'').toLowerCase();
+  const cat=$('#filterCat')?.value||'all';
+  const stf=$('#filterStatus')?.value||'any';
+  const sortBy=$('#sortBy')?.value||'due';
+  const useMonthly=$('#viewMonthlyEq')?.checked||false;
 
-  </script>
+  const amountFor=b=> useMonthly ? monthlyEq(b) : (+b.amount||0);
+
+  DB.bills
+    .filter(b=>!q || (b.name||'').toLowerCase().includes(q) || (b.subcategory||'').toLowerCase().includes(q) || (b.notes||'').toLowerCase().includes(q))
+    .filter(b=>cat==='all' || b.category===cat)
+    .sort((a,b)=>{
+      if(sortBy==='amountAsc') return amountFor(a)-amountFor(b);
+      if(sortBy==='amountDesc') return amountFor(b)-amountFor(a);
+      return new Date(statusFor(a).due) - new Date(statusFor(b).due);
+    })
+    .forEach(bill=>{
+      const st=statusFor(bill);
+      if(stf!=='any' && st.code!==stf) return;
+      const tr=document.importNode($('#rowTmpl').content,true);
+      tr.querySelector('.nm').textContent=bill.name||'';
+      tr.querySelector('.kw').textContent=bill.notes||'';
+      tr.querySelector('.cur').textContent=bill.currentAsOf ? ('Current as of '+toISO(bill.currentAsOf)) : '';
+      tr.querySelector('.ct').textContent=bill.category||'';
+      tr.querySelector('.sc').textContent=bill.subcategory||'';
+      tr.querySelector('.am').textContent=fmtMoney(amountFor(bill));
+      tr.querySelector('.ov').textContent=fmtMoney(+bill.overdue||0);
+      tr.querySelector('.ba').textContent=fmtMoney(+bill.balance||0);
+      tr.querySelector('.ba').title = bill.balanceAsOf ? ('Balance as of '+toISO(bill.balanceAsOf)) : '';
+      tr.querySelector('.du').textContent=toISO(st.due);
+      const stEl=tr.querySelector('.st'); const span=document.createElement('span');
+      span.className='chip '+st.cls; span.textContent=st.label; stEl.appendChild(span);
+
+      tr.querySelector('.btnEdit').onclick=()=> fillForm(bill);
+      const pb=tr.querySelector('.btnPortal');
+      if(bill.portalUrl){ pb.onclick=()=> window.open(bill.portalUrl,'_blank'); } else { pb.disabled=true; pb.title='No portal URL set'; }
+      tr.querySelector('.btnCurrent').onclick=()=> markCurrent(bill);
+      tr.querySelector('.btnPartial').onclick=()=> openPartial(bill);
+      const cb=tr.querySelector('.btnCancel');
+      cb.textContent = bill.cancelRequested ? 'Unmark cancel' : 'Cancel';
+      cb.onclick=()=> toggleCancel(bill);
+
+      tbody.appendChild(tr);
+    });
+}
+function renderSummary(){
+  const tbody=$('#summaryRows'); if(!tbody) return; tbody.innerHTML='';
+  const cat=$('#summaryCat')?.value||'all';
+  const totals={monthly:0,overdue:0,balance:0};
+  window.__summarySort = window.__summarySort || {key:'name',dir:'asc'};
+  const keyFnMap={
+    name:b=>(b.name||'').toLowerCase(),
+    category:b=>(b.category||'').toLowerCase(),
+    subcategory:b=>(b.subcategory||'').toLowerCase(),
+    monthly:b=>monthlyEq(b),
+    overdue:b=>+b.overdue||0,
+    balance:b=>+b.balance||0,
+    due:b=> new Date(statusFor(b).due).getTime(),
+    status:b=> statusFor(b).code
+  };
+  let list=DB.bills.filter(b=> cat==='all' || b.category===cat);
+  list.sort((a,b)=>{ const k=__summarySort.key; const dir=__summarySort.dir==='asc'?1:-1; const va=keyFnMap[k](a), vb=keyFnMap[k](b); if(va<vb) return -1*dir; if(va>vb) return 1*dir; return 0; });
+  list.forEach(b=>{
+    const st=statusFor(b);
+    const m=monthlyEq(b); totals.monthly+=m; totals.overdue+=(+b.overdue||0); totals.balance+=(+b.balance||0);
+    const isCurrent=((+b.overdue||0)<=0 && (+b.balance||0)<=0 && st.code!=='overdue');
+    const tr=document.createElement('tr'); tr.className = isCurrent? 'currentRow' : (st.code==='overdue' ? 'pastDueRow' : '');
+    tr.innerHTML = `<td><strong>${b.name||''}</strong></td>
+      <td>${b.category||''}</td>
+      <td>${b.subcategory||''}</td>
+      <td class="mono">${fmtMoney(m)}</td>
+      <td class="mono">${fmtMoney(+b.overdue||0)}</td>
+      <td class="mono" title="${b.balanceAsOf?('as of '+toISO(b.balanceAsOf)) : ''}">${fmtMoney(+b.balance||0)}</td>
+      <td>${toISO(st.due)}</td>
+      <td>${st.code==='overdue' ? 'Overdue' : (b.cancelRequested ? 'Cancel pending' : (isCurrent ? (b.currentAsOf ? 'Current • '+toISO(b.currentAsOf) : 'Current') : st.label))}</td>`;
+    tbody.appendChild(tr);
+  });
+  $('#sumMonthly').textContent=fmtMoney(totals.monthly);
+  $('#sumOverdue').textContent=fmtMoney(totals.overdue);
+  $('#sumBalance').textContent=fmtMoney(totals.balance);
+  // clickable headers
+  $$('#summaryTable thead th').forEach(th=>{
+    th.style.cursor='pointer';
+    th.onclick=()=>{ const key=th.getAttribute('data-key'); if(!key) return;
+      if(__summarySort.key===key){ __summarySort.dir = (__summarySort.dir==='asc'?'desc':'asc'); } else { __summarySort = {key,dir:'asc'}; }
+      renderSummary();
+    };
+  });
+}
+function renderAll(){ renderKPIs(); renderTable(); renderPayLog(); renderSummary(); if(!$('#chartsSection')?.classList.contains('hidden')) renderChart(); }
+
+/* ---------- Actions ---------- */
+let editingId=null;
+
+function fillForm(b){
+  editingId = b.id;
+  $('#name').value         = b.name || '';
+  $('#category').value     = b.category || 'Household';
+  $('#subcategory').value  = b.subcategory || '';
+  $('#amount').value       = (b.amount ?? '') === '' ? '' : +b.amount;
+  $('#frequency').value    = b.frequency || 'monthly';
+  $('#anchor').value       = b.anchor || toISO(today());
+  $('#customDays').value   = b.customDays || '';
+  $('#autopay').value      = b.autopay || 'no';
+  $('#account').value      = b.account || '';
+  $('#notes').value        = b.notes || '';
+  $('#portalUrl').value    = b.portalUrl || '';
+  $('#overdue').value      = (b.overdue ?? '') === '' ? '' : +b.overdue;
+  $('#balance').value      = (b.balance ?? '') === '' ? '' : +b.balance;
+  $('#balanceAsOf').value  = b.balanceAsOf || '';
+  $('#deleteBill')?.classList.remove('hidden');
+  $('#billDlg').showModal();
+}
+function blankForm(){
+  editingId = null;
+  ['name','subcategory','amount','anchor','customDays','account','notes','portalUrl','overdue','balance','balanceAsOf']
+    .forEach(id => { $('#'+id).value = ''; });
+  $('#category').value  = 'Household';
+  $('#frequency').value = 'monthly';
+  $('#autopay').value   = 'no';
+  $('#deleteBill')?.classList.add('hidden');
+  $('#billDlg').showModal();
+}
+$('#saveBill').addEventListener('click', ()=>{
+  const existing = editingId ? DB.bills.find(x=>x.id===editingId) : null;
+  const b={
+    id: editingId||uid(),
+    name: $('#name').value, category: $('#category').value, subcategory: $('#subcategory').value,
+    amount:+$('#amount').value||0, frequency: $('#frequency').value, anchor: $('#anchor').value||toISO(today()), customDays:+$('#customDays').value||0,
+    autopay: $('#autopay').value, account: $('#account').value, notes: $('#notes').value, portalUrl: ($('#portalUrl').value||'').trim(),
+    overdue:+$('#overdue').value||0, balance:+$('#balance').value||0, balanceAsOf: $('#balanceAsOf').value||'',
+    nextDue: existing?.nextDue, lastPaid: existing?.lastPaid, currentAsOf: existing?.currentAsOf, cancelRequested: !!existing?.cancelRequested
+  };
+  const idx=DB.bills.findIndex(x=>x.id===b.id); if(idx>=0) DB.bills[idx]=b; else DB.bills.push(b);
+  saveDB(); renderAll(); $('#billDlg').close();
+});
+$('#cancelBill').addEventListener('click', ()=> $('#billDlg').close());
+$('#deleteBill')?.addEventListener('click', ()=>{
+  if(!editingId) return;
+  const bill = DB.bills.find(x=>x.id===editingId);
+  if(!bill){ $('#billDlg').close(); return; }
+  if(!confirm(`Delete "${bill.name}" and all its payment log entries?`)) return;
+  DB.bills = DB.bills.filter(x=>x.id !== editingId);
+  DB.txns  = DB.txns.filter(t=> t.billId !== editingId);
+  saveDB(); renderAll(); editingId = null; $('#billDlg').close();
+});
+
+function openPartial(b){ activeBill=b; $('#payDate').value=toISO(today()); $('#payAmt').value=''; $('#payMemo').value=''; $('#paidReduceBalance').checked=true; $('#payDlg').showModal(); }
+let activeBill=null;
+$('#confirmPaid').addEventListener('click', ()=>{
+  if(!activeBill) return;
+  const d=$('#payDate').value||toISO(today()); const amt=+$('#payAmt').value||0; const memo=$('#payMemo').value||'Partial payment';
+  DB.txns.push({ id:uid(), billId:activeBill.id, date:d, amount:amt, memo, periodKey:periodKey(activeBill) });
+  activeBill.lastPaid=d;
+  activeBill.overdue=Math.max(0,(+activeBill.overdue||0)-amt);
+  if($('#paidReduceBalance').checked){ activeBill.balance=Math.max(0,(+activeBill.balance||0)-amt); activeBill.balanceAsOf=d; }
+  if((+activeBill.overdue||0)===0 && (+activeBill.balance||0)===0){ activeBill.currentAsOf=d; }
+  saveDB(); renderAll(); $('#payDlg').close();
+});
+$('#cancelPaid').addEventListener('click', ()=> $('#payDlg').close());
+
+function markCurrent(b){
+  const d=toISO(today());
+  const cur=nextDueFrom(b);
+  const nxt=nextDueFrom(b, addDays(cur,1));
+  DB.txns.push({ id:uid(), billId:b.id, date:d, amount:+b.amount||0, memo:'Marked current', periodKey:(b.frequency||'monthly')+':'+toISO(cur) });
+  b.lastPaid=d; b.currentAsOf=d; b.overdue=0; b.balance=0; b.balanceAsOf=d; b.nextDue=toISO(nxt);
+  saveDB(); renderAll();
+}
+function toggleCancel(b){
+  b.cancelRequested = !b.cancelRequested;
+  b.cancelAt = b.cancelRequested ? toISO(today()) : '';
+  saveDB(); renderAll();
+}
+
+/* ---------- Filters/search/sort & buttons ---------- */
+$('#search').addEventListener('input', renderTable);
+$('#filterCat').addEventListener('change', ()=>{ renderTable(); renderKPIs(); });
+$('#filterStatus').addEventListener('change', ()=>{ renderTable(); renderKPIs(); });
+$('#sortBy').addEventListener('change', renderTable);
+$('#viewMonthlyEq').addEventListener('change', renderTable);
+$('#btnAdd').addEventListener('click', blankForm);
+
+$('#btnProfile').addEventListener('click', ()=>{
+  const dlg=$('#authDlg'); const list=getProfiles(); const wrap=$('#profilesList');
+  if(wrap){ wrap.innerHTML=''; list.forEach(p=>{ const b=document.createElement('button'); b.className='ghost'; b.textContent=p.name; b.onclick=()=>{ $('#profName').value=p.name; $('#profPass').focus(); }; wrap.appendChild(b); }); }
+  const cur=getCurrentProfile(); const info=$('#profileInfo'); if(info) info.textContent = cur? ('Current: '+cur.name) : 'Current: Guest (no profile)';
+  dlg.showModal();
+});
+$('#btnCreateProfile').addEventListener('click', async()=>{ await createProfile($('#profName').value,$('#profPass').value); });
+$('#btnLoginProfile').addEventListener('click', async()=>{ await loginProfile($('#profName').value,$('#profPass').value); });
+$('#btnSignOut').addEventListener('click', signOutProfile);
+$('#btnCloseAuth').addEventListener('click', ()=> $('#authDlg').close());
+
+function showSection(which){
+  $('#dashboardSection')?.classList.add('hidden');
+  $('#payLogSection')?.classList.add('hidden');
+  $('#summarySection')?.classList.add('hidden');
+  $('#chartsSection')?.classList.add('hidden');
+  if(which==='dashboard') $('#dashboardSection')?.classList.remove('hidden');
+  if(which==='paylog'){ $('#payLogSection')?.classList.remove('hidden'); renderPayLog(); }
+  if(which==='summary'){ $('#summarySection')?.classList.remove('hidden'); renderSummary(); }
+  if(which==='charts'){ $('#chartsSection')?.classList.remove('hidden'); renderChart(); }
+}
+$('#btnDash')?.addEventListener('click', ()=> showSection('dashboard'));
+$('#btnPayLog')?.addEventListener('click', ()=> showSection('paylog'));
+$('#btnSummary')?.addEventListener('click', ()=> showSection('summary'));
+$('#btnCharts')?.addEventListener('click', ()=> showSection('charts'));
+$('#btnChartRefresh')?.addEventListener('click', renderChart);
+$('#chartMetric')?.addEventListener('change', renderChart);
+$('#chartCat')?.addEventListener('change', renderChart);
+$('#summaryCat')?.addEventListener('change', renderSummary);
+
+/* ---------- CSV export ---------- */
+$('#btnExport').addEventListener('click', ()=>{
+  const rows=[['name','category','subcategory','amount','overdue','balance','balanceAsOf','frequency','anchor','autopay','account','notes','portalUrl']];
+  rows.push(...DB.bills.map(b=>[b.name,b.category,b.subcategory,b.amount,(+b.overdue||0),(+b.balance||0),b.balanceAsOf||'',b.frequency,b.anchor,b.autopay,b.account,b.notes,b.portalUrl||'']));
+  const csv=rows.map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='bills.csv'; a.click(); URL.revokeObjectURL(url);
+});
+
+/* ---------- Seed sample ---------- */
+function seedRecommended(){
+  const base=toISO(today());
+  const seed=[
+    {name:'Mortgage', category:'Household', subcategory:'Housing', amount:2100, frequency:'monthly', anchor:base, notes:'mortgage escrow'},
+    {name:'Electric (Utility)', category:'Household', subcategory:'Utilities', amount:160, frequency:'monthly', anchor:base, notes:'electric entergy txu'},
+    {name:'Internet (Spectrum)', category:'Household', subcategory:'Internet', amount:85, frequency:'monthly', anchor:base, notes:'spectrum internet'},
+    {name:'Cell Phones', category:'Household', subcategory:'Phone', amount:180, frequency:'monthly', anchor:base, notes:'verizon att tmobile'},
+    {name:'Office Rent', category:'Business', subcategory:'Office', amount:1400, frequency:'monthly', anchor:base, notes:'lease office'},
+    {name:'Malpractice Insurance', category:'Business', subcategory:'Insurance', amount:1200, frequency:'yearly', anchor:base, notes:'insurance malpractice'},
+    {name:'Google Workspace', category:'Business', subcategory:'SaaS', amount:36, frequency:'monthly', anchor:base, notes:'google workspace'},
+    {name:'QuickBooks Online', category:'Business', subcategory:'Accounting', amount:90, frequency:'monthly', anchor:base, notes:'quickbooks intuit'}
+  ];
+  seed.forEach(s=> DB.bills.push({id:uid(), overdue:0, balance:0, balanceAsOf:'', portalUrl:'', cancelRequested:false, ...s}));
+  saveDB(); renderAll();
+}
+$('#addSample').addEventListener('click', seedRecommended);
+$('#clearAll').addEventListener('click', ()=>{ if(confirm('Reset all data for this profile?')){ DB={bills:[],txns:[]}; saveDB(); renderAll(); }});
+
+/* ---------- Init ---------- */
+initProfiles();
+loadDB();
+refreshProfileBadge();
+</script>
 </body>
 </html>
