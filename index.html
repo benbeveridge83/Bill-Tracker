@@ -143,7 +143,6 @@
         <button class="ghost" id="btnDash">Dashboard</button>
         <button class="ghost" id="btnPayLog">Pay Log</button>
         <button class="ghost" id="btnSummary">Summary</button>
-        <button class="ghost" id="btnCharts">Charts</button>
         <select id="filterCat" title="Filter category">
           <option value="all">All</option>
           <option value="Household">Household</option>
@@ -289,63 +288,22 @@
       <section id="summarySection" class="card hidden">
         <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Summary</h2>
         <div class="pad">
-          <div class="toolbar" style="margin-bottom:8px">
-            <label style="display:inline-flex;align-items:center;gap:6px">Category
-              <select id="summaryCat">
-                <option value="all">All</option>
-                <option value="Household">Household</option>
-                <option value="Business">Business</option>
-              </select>
-            </label>
-            <div class="help">Click a column header to sort (toggles asc/desc).</div>
-          </div>
-          <table class="compact" id="summaryTable">
+          <table class="compact">
             <thead>
               <tr>
-                <th data-key="name">Name</th>
-                <th data-key="category">Cat.</th>
-                <th data-key="subcategory">Subcat.</th>
-                <th data-key="monthly" class="mono">Monthly</th>
-                <th data-key="overdue" class="mono">Overdue</th>
-                <th data-key="balance" class="mono">Balance</th>
-                <th data-key="due">Due</th>
-                <th data-key="status">Status</th>
+                <th>Name</th>
+                <th>Cat.</th>
+                <th>Subcat.</th>
+                <th class="mono">Monthly</th>
+                <th class="mono">Overdue</th>
+                <th class="mono">Balance</th>
+                <th>Due</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody id="summaryRows"></tbody>
-            <tfoot>
-              <tr>
-                <td colspan="3" class="mono" style="text-align:right"><strong>Totals:</strong></td>
-                <td class="mono" id="sumMonthly">$0.00</td>
-                <td class="mono" id="sumOverdue">$0.00</td>
-                <td class="mono" id="sumBalance">$0.00</td>
-                <td colspan="2"></td>
-              </tr>
-            </tfoot>
           </table>
-          <div class="help">Rows in green are "current" (no overdue/balance and not past due). Rows in red are past due.</div>
-        </div>
-      </section>
-
-      <div class="pad"></div>
-
-      <section id="chartsSection" class="card hidden">
-        <h2 style="padding:12px 16px; margin:0; border-bottom:1px solid var(--line)">Charts</h2>
-        <div class="pad">
-          <div class="toolbar" style="margin-bottom:8px">
-            <label style="display:inline-flex;align-items:center;gap:6px">Metric
-              <select id="chartMetric"><option value="balance">Balance</option><option value="overdue">Overdue</option></select>
-            </label>
-            <label style="display:inline-flex;align-items:center;gap:6px">Category
-              <select id="chartCat">
-                <option value="all">All</option>
-                <option value="Household">Household</option>
-                <option value="Business">Business</option>
-              </select>
-            </label>
-            <button class="ghost" id="btnChartRefresh">Refresh</button>
-          </div>
-          <canvas id="chartCanvas" style="width:100%; height:480px"></canvas>
+          <div class="help">Rows in green are current (no overdue/balance). Rows in red are past due.</div>
         </div>
       </section>
     </main>
@@ -542,8 +500,6 @@
   const today = ()=>{ const d = new Date(); d.setHours(0,0,0,0); return d; };
   const toISO = (d)=>{ if(!d) return ''; const x = (d instanceof Date)? d : new Date(d); const z = new Date(x.getTime()-x.getTimezoneOffset()*60000); return z.toISOString().slice(0,10); };
   const addDays = (d, n)=>{ const x = new Date(d); x.setDate(x.getDate()+n); x.setHours(0,0,0,0); return x; };
-  const addMonths = (d, n)=>{ const x = new Date(d); const day=x.getDate(); x.setMonth(x.getMonth()+n); if(x.getDate()<day){ x.setDate(0); } x.setHours(0,0,0,0); return x; };
-  const addYears = (d, n)=>{ const x = new Date(d); x.setFullYear(x.getFullYear()+n); x.setHours(0,0,0,0); return x; };
   const fmtMoney = (n)=> (n||0).toLocaleString(undefined,{style:'currency',currency:'USD'});
   const uid = ()=> 'id_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(3);
   const near = (a,b,eps)=> Math.abs(a-b) <= (eps||0);
@@ -654,31 +610,21 @@
 
   // ---------- Status & scheduling ----------
   function nextDueFrom(b, fromDate){
-    let due = b.nextDue ? new Date(b.nextDue) : (b.anchor ? new Date(b.anchor) : today());
-    if (isNaN(due)) due = today();
-    const base = new Date(fromDate || today()); base.setHours(0,0,0,0);
-    const step = ()=>{
-      switch(b.frequency){
-        case 'weekly':    due = addDays(due, 7); break;
-        case 'monthly':   due = addMonths(due, 1); break;
-        case 'quarterly': due = addMonths(due, 3); break;
-        case 'yearly':    due = addYears(due, 1); break;
-        case 'custom':    due = addDays(due, Math.max(1, +b.customDays||30)); break;
-        default:          due = addMonths(due, 1); break;
-      }
-    };
-    while(due < base) step();
-    return due;
-  }
+    const base = new Date(fromDate||b.anchor||today()); base.setHours(0,0,0,0);
+    switch(b.frequency){
+      case 'weekly': return addDays(base, 7);
+      case 'quarterly': return addDays(base, 91);
+      case 'yearly': return addDays(base, 365);
+      case 'custom': return addDays(base, Math.max(1, +b.customDays||30));
+      case 'monthly': default: return addDays(base, 30);
+    }
   }
   function statusFor(b){
-    const due = nextDueFrom(b);
+    let due = b.nextDue ? new Date(b.nextDue) : (b.anchor? new Date(b.anchor) : today());
+    due.setHours(0,0,0,0);
     const t = today();
-    if (due < t) return {code:'overdue', label:'Overdue', cls:'over', due};
-    if ((due - t)/86400000 <= 7) return {code:'due', label: b.autopay==='yes' ? 'Due soon (autopay)' : 'Due soon', cls:'due', due};
-    return {code:'future', label:'Future', cls:'ok', due};
-  }
-  function periodKey(b){ const due = nextDueFrom(b); return (b.frequency||'monthly') + ':' + toISO(due); }
+    let code='future', label='Future', cls='ok';
+    if (due < t) { code='overdue'; label='Overdue'; cls='over'; }
     else if ((due - t)/(86400000) <= 7) { code='due'; label='Due soon'; cls='due'; }
     return {code, label, cls, due};
   }
@@ -694,66 +640,8 @@
     rows.forEach(tx=>{ const bill=DB.bills.find(bb=>bb.id===tx.billId); const tr=document.createElement('tr'); tr.innerHTML=`<td class="mono">${toISO(tx.date)}</td><td>${bill?bill.name:'(deleted bill)'}</td><td class="mono">${fmtMoney(+tx.amount||0)}</td><td>${tx.memo||''}</td>`; tbody.appendChild(tr); });
   }
   function monthlyEq(b){ const amt=+b.amount||0; switch(b.frequency){ case 'yearly': return amt/12; case 'quarterly': return amt/3; case 'weekly': return amt*52/12; case 'custom': return amt*(30.4375/Math.max(1,+b.customDays||30)); default: return amt; } }
-  function renderChart(){
-    const canvas = $('#chartCanvas'); if(!canvas) return; const ctx = canvas.getContext('2d');
-    const metric = $('#chartMetric')?.value || 'balance';
-    const cat = $('#chartCat')?.value || 'all';
-    let list = DB.bills.filter(b=> (cat==='all' || b.category===cat)).map(b=>({ name: b.name||'', value: +b[metric]||0 })).filter(x=> x.value>0);
-    list.sort((a,b)=> b.value - a.value);
-    const wrap = canvas.parentElement; const width = Math.max(600, wrap.clientWidth-16); canvas.width = width; const barH=22, gap=8; const padL=180, padR=40, padT=20, padB=20; canvas.height = padT + padB + list.length*(barH+gap);
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    const max = Math.max(1, ...list.map(d=>d.value));
-    ctx.font = '12px system-ui'; ctx.textBaseline='middle';
-    list.forEach((row,i)=>{
-      const y = padT + i*(barH+gap);
-      const w = (width - padL - padR) * (row.value/max);
-      // track background
-      ctx.fillStyle = '#e5e7eb'; ctx.fillRect(padL, y, (width-padL-padR), barH);
-      // bar
-      ctx.fillStyle = '#0ea5e9'; ctx.fillRect(padL, y, w, barH);
-      // labels
-      ctx.fillStyle = '#111827'; ctx.fillText(row.name, 10, y + barH/2);
-      const val = fmtMoney(row.value);
-      ctx.fillText(val, padL + w + 6, y + barH/2);
-    });
-  }
+  function renderSummary(){ const tbody=$('#summaryRows'); if(!tbody) return; tbody.innerHTML=''; DB.bills.forEach(b=>{ const st=statusFor(b); const isCurrent=((+b.overdue||0)<=0 && (+b.balance||0)<=0); const tr=document.createElement('tr'); tr.className = isCurrent? 'currentRow' : (st.code==='overdue' ? 'pastDueRow' : ''); tr.innerHTML = `<td><strong>${b.name||''}</strong></td><td>${b.category||''}</td><td>${b.subcategory||''}</td><td class="mono">${fmtMoney(monthlyEq(b))}</td><td class="mono">${fmtMoney(+b.overdue||0)}</td><td class="mono">${fmtMoney(+b.balance||0)}</td><td>${toISO(st.due)}</td><td>${isCurrent ? (b.currentAsOf ? 'Current • '+toISO(b.currentAsOf) : 'Current') : st.label}</td>`; tbody.appendChild(tr); }); }
   function renderKPIs(){
-    const t = today();
-    const catSel = $('#filterCat') ? $('#filterCat').value : 'all';
-    const stSel = $('#filterStatus') ? $('#filterStatus').value : 'any';
-
-    let overdueCnt = 0, dueAmt = 0, monthTotal = 0, paidTotal = 0, totOverdue = 0, totBalance = 0;
-
-    const bills = DB.bills.filter(b=> (catSel==='all' || b.category===catSel));
-
-    bills.forEach(b=>{
-      const st = statusFor(b);
-      const amt = +b.amount||0;
-      const due = st.due;
-      if(stSel==='any' || st.code===stSel){
-        if(st.code==='overdue') overdueCnt++;
-        if(st.code==='due') dueAmt += amt;
-      }
-      if(due.getMonth()===t.getMonth() && due.getFullYear()===t.getFullYear()) monthTotal += amt;
-      totOverdue += (+b.overdue||0);
-      totBalance += (+b.balance||0);
-    });
-
-    DB.txns.forEach(tx=>{
-      const d = new Date(tx.date);
-      if(d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear()){
-        const b = DB.bills.find(bb=>bb.id===tx.billId);
-        if(b && (catSel==='all' || b.category===catSel)) paidTotal += (+tx.amount||0);
-      }
-    });
-
-    $('#kOverdue').textContent = overdueCnt;
-    $('#kDue').textContent = fmtMoney(dueAmt);
-    $('#kMonth').textContent = fmtMoney(monthTotal);
-    $('#kPaid').textContent = fmtMoney(paidTotal);
-    $('#kTotOverdue').textContent = fmtMoney(totOverdue);
-    $('#kTotBalance').textContent = fmtMoney(totBalance);
-  }(){
     const t = today();
     const catSel = $('#filterCat') ? $('#filterCat').value : 'all';
     const stSel = $('#filterStatus') ? $('#filterStatus').value : 'any';
@@ -844,7 +732,7 @@
       });
   }
 
-  function renderAll(){ renderKPIs(); renderTable(); renderPayLog(); renderSummary(); if(!$('#chartsSection')?.classList.contains('hidden')) renderChart(); }
+  function renderAll(){ renderKPIs(); renderTable(); renderPayLog(); renderSummary(); }
 
   // ---------- Bill form ----------
   let editingId = null;
@@ -885,14 +773,8 @@
   let activeBill = null;
   function openPartial(b){ activeBill = b; $('#payDate').value = toISO(today()); $('#payAmt').value = ''; $('#payMemo').value=''; $('#paidReduceBalance').checked=true; $('#payDlg').showModal(); }
   function markCurrent(b){
-    const d = toISO(today());
-    const curDue = nextDueFrom(b);
+    const st = statusFor(b); const d = toISO(today());
     DB.txns.push({ id: uid(), billId: b.id, date: d, amount: +b.amount||0, memo: 'Marked current', periodKey: periodKey(b) });
-    b.lastPaid = d;
-    b.nextDue = toISO(nextDueFrom(b, addDays(curDue,1)));
-    b.overdue = 0; b.balance = 0; b.currentAsOf = d;
-    saveDB(); renderAll();
-  });
     b.lastPaid = d; b.nextDue = toISO(nextDueFrom(b, addDays(st.due,1)));
     b.overdue = 0; b.balance = 0; b.currentAsOf = d;
     saveDB(); renderAll();
@@ -1065,22 +947,13 @@
     $('#dashboardSection')?.classList.add('hidden');
     $('#payLogSection')?.classList.add('hidden');
     $('#summarySection')?.classList.add('hidden');
-    $('#chartsSection')?.classList.add('hidden');
     if(which==='dashboard') $('#dashboardSection')?.classList.remove('hidden');
     if(which==='paylog'){ $('#payLogSection')?.classList.remove('hidden'); renderPayLog(); }
-    if(which==='summary'){ $('#summarySection')?.classList.remove('hidden'); renderSummary(); }
-    if(which==='charts'){ $('#chartsSection')?.classList.remove('hidden'); renderChart(); }
-  }
     if(which==='summary'){ $('#summarySection')?.classList.remove('hidden'); renderSummary(); }
   }
   $('#btnDash')?.addEventListener('click', ()=> showSection('dashboard'));
   $('#btnPayLog')?.addEventListener('click', ()=> showSection('paylog'));
   $('#btnSummary')?.addEventListener('click', ()=> showSection('summary'));
-  $('#btnCharts')?.addEventListener('click', ()=> showSection('charts'));
-  $('#btnChartRefresh')?.addEventListener('click', renderChart);
-  $('#chartMetric')?.addEventListener('change', renderChart);
-  $('#chartCat')?.addEventListener('change', renderChart);
-  $('#summaryCat')?.addEventListener('change', renderSummary);
 
   // ---------- Export CSV ----------
   $('#btnExport').addEventListener('click', ()=>{
