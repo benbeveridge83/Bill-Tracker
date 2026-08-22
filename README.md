@@ -1,95 +1,132 @@
-# Bills & Budget v0.2.0
+# Bills & Budget v0.3.0
 
-This version moves Bills & Budget from browser-only storage to Supabase and adds a secure Plaid connection flow.
+Bills & Budget is a React/Vite application backed by Supabase. Plaid imports bank balances and transactions; bill reconciliation and spending classification now run on the secure server side.
 
-## Already completed
+## v0.3.0 features
 
-- Dedicated Supabase project: `Bill Tracker` (`bmiozjuhmytxlikracfv`)
-- User authentication and user-owned database rows protected by Row Level Security
-- Plaid Link token creation and public-token exchange
-- Balance and transaction synchronization with Plaid `/transactions/sync`
-- Bank disconnection and server-side token removal
-- One-click import of the existing browser profile, tracker marks, and pay log
-- GitHub Pages build/deployment workflow
-- Visible app version `0.2.0`
+- Assign **Household** bills to one connected bank account and **Business** bills to another.
+- Per-bill bank matching modes:
+  - **Review**: suggest a transaction and wait for approval.
+  - **Automatic**: mark the month paid only for a high-confidence local or learned match.
+  - **Off**: never match that bill.
+- Approving a match learns the normalized bank wording and typical amount for the bill/account.
+- Rejecting a suggestion suppresses that bill/transaction pairing.
+- Monthly AI reconciliation through the OpenAI Responses API, with structured match output.
+- Tracker cells show **BANK** for confirmed Plaid payments and **REVIEW** for suggestions; clicking the month displays the underlying transaction.
+- Transaction workspace with filters for:
+  - identified bills,
+  - bill suggestions,
+  - transactions not identified as bills,
+  - characterized/uncharacterized transactions,
+  - money in/out,
+  - checks,
+  - transfers.
+- Spending page with monthly money in, money out, net cash flow, checks, transfers, characterized spending, uncharacterized spending, and category totals.
+- Manual spending categories and optional exclusion from spending totals.
+- Plaid personal-finance category, payment-channel, check-number, counterparty, transfer, and check metadata are stored when available.
 
-Plaid access tokens and the Plaid secret never enter the browser or GitHub repository.
+## Security model
 
-## Step 1 — Add your Plaid credentials
+- Plaid access tokens and the OpenAI API key remain in Supabase Edge Function secrets.
+- The browser receives bank account display fields and imported transaction rows, but never a Plaid access token.
+- The AI matcher sends only the bill/transaction fields needed for reconciliation. It does not send Plaid credentials, access tokens, or bank account numbers.
+- All browser tables use Row Level Security tied to `auth.uid()`.
+- Edge Functions still validate the caller's Supabase access token even though the deployment flag is `--no-verify-jwt`.
 
-Open PowerShell in this project folder. Sign in to the Supabase CLI, then run the secret command with values copied from **Plaid Dashboard → Keys**. Do not paste those values into source files.
+## 1. Install and build
 
-```powershell
-npx -y supabase@2.114.0 login
-npx -y supabase@2.114.0 secrets set --project-ref bmiozjuhmytxlikracfv PLAID_CLIENT_ID="PASTE_YOUR_CLIENT_ID" PLAID_SECRET="PASTE_YOUR_SANDBOX_SECRET" PLAID_ENV="sandbox"
+```bash
+npm install
+npm run lint
+npm run build
 ```
 
-Start with Sandbox. When the app is ready for real banks, repeat the second command using the Production secret and `PLAID_ENV="production"`.
+The Vite base path remains `/Bill-Tracker/` for GitHub Pages.
 
-## Step 2 — Configure Supabase email links
+## 2. Apply the new database migration
 
-In the [Bill Tracker Supabase project](https://supabase.com/dashboard/project/bmiozjuhmytxlikracfv):
-
-1. Open **Authentication → URL Configuration**.
-2. Set **Site URL** to `https://benbeveridge83.github.io/Bill-Tracker/`.
-3. Add the same address under **Redirect URLs**.
-
-## Step 3 — Add GitHub repository secrets
-
-In `benbeveridge83/Bill-Tracker`, open **Settings → Secrets and variables → Actions** and add:
-
-| Name | Value |
-| --- | --- |
-| `VITE_SUPABASE_URL` | `https://bmiozjuhmytxlikracfv.supabase.co` |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_j0im7g13snJOuIWUZTgfLQ_QYSHYDZn` |
-
-Then open **Settings → Pages** and choose **GitHub Actions** as the deployment source.
-
-## Step 4 — Test locally
-
-Create `.env.local` in this folder with the same two public frontend settings:
+The original schema migration is:
 
 ```text
-VITE_SUPABASE_URL=https://bmiozjuhmytxlikracfv.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_j0im7g13snJOuIWUZTgfLQ_QYSHYDZn
+supabase/migrations/20260725_bill_tracker.sql
 ```
 
-Then run:
+Apply the v0.3.0 migration after it:
 
-```powershell
-npm install
-npm run build
-npm run dev
+```text
+supabase/migrations/20260822_bank_matching_budget.sql
 ```
 
-## Step 5 — Push the update
+With the Supabase CLI:
 
-After placing these files in your existing `Bill-Tracker` repository:
-
-```powershell
-npm install
-npm run build
-git add .
-git commit -m "Add secure Plaid bank connections v0.2.0"
-git push origin main
+```bash
+supabase db push --project-ref bmiozjuhmytxlikracfv
 ```
 
-The GitHub workflow builds and publishes the app automatically.
+## 3. Edge Function secrets
 
-## First use and data migration
+The existing Plaid secrets remain required:
 
-1. Before deploying, leave the current live page/browser data intact.
-2. After deployment, create your new app login and confirm your email if prompted.
-3. On Dashboard, click **Import existing browser data**. This reads the old profile from the same browser and moves its bills, tracker marks, and pay log into your private Supabase account.
-4. Open **Bank connections** and click **Connect bank account**.
-5. In Sandbox, use Plaid's test credentials: username `user_good`, password `pass_good`, and verification code `1234` if requested.
-6. Click **Sync balances & transactions**.
+```bash
+supabase secrets set \
+  PLAID_CLIENT_ID=... \
+  PLAID_SECRET=... \
+  PLAID_ENV=sandbox \
+  SUPABASE_URL=https://bmiozjuhmytxlikracfv.supabase.co \
+  SUPABASE_SERVICE_ROLE_KEY=... \
+  --project-ref bmiozjuhmytxlikracfv
+```
 
-Do not clear browser storage or use the old app's Reset button until the import reports success.
+Add the OpenAI key only as a Supabase secret:
 
-## Production notes
+```bash
+supabase secrets set \
+  OPENAI_API_KEY=... \
+  OPENAI_MATCH_MODEL=gpt-5.6-luna \
+  --project-ref bmiozjuhmytxlikracfv
+```
 
-- Plaid suggestions never automatically mark bills paid.
-- Real bank connections require Plaid Production access and the Production secret.
-- OAuth-capable banks work on desktop web without a custom redirect page. A dedicated redirect flow can be added later for embedded mobile webviews.
-- The frontend uses only the public Supabase publishable key. Server and Plaid secrets remain protected in Supabase.
+`OPENAI_MATCH_MODEL` is optional. The function defaults to `gpt-5.6-luna`.
+
+Do not place either the Plaid secret or OpenAI API key in `.env`, Vite variables, GitHub Pages, or browser JavaScript.
+
+## 4. Deploy Edge Functions
+
+```bash
+supabase functions deploy plaid-create-link-token --no-verify-jwt --project-ref bmiozjuhmytxlikracfv
+supabase functions deploy plaid-exchange-public-token --no-verify-jwt --project-ref bmiozjuhmytxlikracfv
+supabase functions deploy plaid-sync-transactions --no-verify-jwt --project-ref bmiozjuhmytxlikracfv
+supabase functions deploy plaid-disconnect-item --no-verify-jwt --project-ref bmiozjuhmytxlikracfv
+supabase functions deploy bill-match-action --no-verify-jwt --project-ref bmiozjuhmytxlikracfv
+supabase functions deploy ai-match-bills --no-verify-jwt --project-ref bmiozjuhmytxlikracfv
+```
+
+## 5. Normal workflow
+
+1. Open **Plaid** and connect/sync the institution.
+2. Assign a connected account to **Household** and another to **Business**.
+3. Edit each bill and choose **Review**, **Automatic**, or **Matching off**. Add comma-separated bank keywords when useful.
+4. Open **Transactions**, choose the month, and click **Find … bill payments**.
+5. Approve or reject suggestions. Approval creates the monthly tracker mark, adds the pay-log entry, and learns the bank wording.
+6. Use **Not identified as bills** plus **Uncharacterized only** to work through the remaining transactions.
+7. Open **Spending** for monthly totals and category comparisons.
+
+## Matching behavior
+
+Automatic confirmation is intentionally conservative:
+
+- learned wording plus a similar amount, or
+- a strong bill-name/keyword match plus an amount within the bill's tolerance.
+
+An AI-only match is presented for review rather than silently marking a bill paid. Once approved, the exact wording becomes a learned rule and can support automatic confirmation in later months.
+
+## GitHub Pages
+
+The included GitHub Actions workflow publishes `dist/` when changes are pushed to `main`. Repository variables still need:
+
+```text
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+```
+
+These are public browser configuration values. Never use the service-role key as the anonymous key.
