@@ -1,0 +1,13 @@
+project_id = "bill-tracker-live"
+
+[functions.plaid-create-link-token]
+verify_jwt = false
+
+[functions.plaid-exchange-public-token]
+verify_jwt = false
+
+[functions.plaid-sync-transactions]
+verify_jwt = false
+
+[functions.plaid-disconnect-item]
+verify_jwt = false
