@@ -37,7 +37,9 @@ export default function TransactionsPage({
   const [billView, setBillView] = useState(true);
   const [categories, setCategories] = useState([]);
   const [rules, setRules] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
   const [showManager, setShowManager] = useState(false);
+  const [showSubscriptions, setShowSubscriptions] = useState(true);
   const [managerStatus, setManagerStatus] = useState('');
   const shownAccounts = accounts.filter((account) => !account.is_hidden);
 
@@ -49,14 +51,20 @@ export default function TransactionsPage({
     () => Object.fromEntries(bills.map((bill) => [bill.id, bill])),
     [bills],
   );
+  const openSubscriptionKeys = useMemo(
+    () => new Set(subscriptions.filter((item) => item.status === 'open').map((item) => item.merchant_key)),
+    [subscriptions],
+  );
 
   async function loadRulesAndCategories() {
-    const [categoryResult, ruleResult] = await Promise.all([
+    const [categoryResult, ruleResult, subscriptionResult] = await Promise.all([
       supabase.from('spending_categories').select('*').order('name'),
       supabase.from('transaction_classification_rules').select('*').eq('active', true).order('merchant_pattern'),
+      supabase.from('subscription_cancellations').select('*').order('status').order('updated_at', { ascending: false }),
     ]);
     if (!categoryResult.error) setCategories(categoryResult.data || []);
     if (!ruleResult.error) setRules(ruleResult.data || []);
+    if (!subscriptionResult.error) setSubscriptions(subscriptionResult.data || []);
   }
 
   useEffect(() => {
@@ -129,10 +137,9 @@ export default function TransactionsPage({
       return;
     }
     await Promise.all([
-      supabase.from('plaid_transactions').update({ spending_category: newName })
-        .eq('spending_category', oldName),
-      supabase.from('transaction_classification_rules').update({ spending_category: newName, updated_at: new Date().toISOString() })
-        .eq('spending_category', oldName),
+      supabase.from('plaid_transactions').update({ spending_category: newName }).eq('spending_category', oldName),
+      supabase.from('transaction_classification_rules').update({ spending_category: newName, updated_at: new Date().toISOString() }).eq('spending_category', oldName),
+      supabase.from('subscription_cancellations').update({ spending_category: newName, updated_at: new Date().toISOString() }).eq('spending_category', oldName),
     ]);
     setManagerStatus(`Renamed “${oldName}” to “${newName}”.`);
     await loadRulesAndCategories();
@@ -219,6 +226,64 @@ export default function TransactionsPage({
     }
   }
 
+  async function flagSubscription(tx) {
+    const merchant = tx.merchant_name || tx.name || transactionName(tx);
+    const merchantKey = normalizeMerchant(merchant);
+    if (!merchantKey) return;
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) return;
+
+    const { error } = await supabase.from('subscription_cancellations').upsert({
+      user_id: userId,
+      merchant_key: merchantKey,
+      merchant_name: merchant,
+      source_transaction_id: tx.transaction_id,
+      latest_transaction_date: tx.date,
+      latest_amount: Math.abs(Number(tx.amount) || 0),
+      spending_category: tx.spending_category || null,
+      status: 'open',
+      cancelled_at: null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,merchant_key' });
+
+    if (error) {
+      setManagerStatus(error.message);
+      return;
+    }
+    setManagerStatus(`Added “${merchant}” to Subscriptions to cancel.`);
+    setShowSubscriptions(true);
+    await loadRulesAndCategories();
+  }
+
+  async function setSubscriptionStatus(item, status) {
+    const { error } = await supabase.from('subscription_cancellations')
+      .update({
+        status,
+        cancelled_at: status === 'cancelled' ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', item.id);
+    if (error) setManagerStatus(error.message);
+    else {
+      setManagerStatus(status === 'cancelled' ? `Marked “${item.merchant_name}” cancelled.` : `Reopened “${item.merchant_name}”.`);
+      await loadRulesAndCategories();
+    }
+  }
+
+  async function deleteSubscription(item) {
+    if (!window.confirm(`Remove “${item.merchant_name}” from the cancellation list?`)) return;
+    const { error } = await supabase.from('subscription_cancellations').delete().eq('id', item.id);
+    if (error) setManagerStatus(error.message);
+    else {
+      setManagerStatus(`Removed “${item.merchant_name}” from the cancellation list.`);
+      await loadRulesAndCategories();
+    }
+  }
+
+  const openSubscriptions = subscriptions.filter((item) => item.status === 'open');
+  const cancelledSubscriptions = subscriptions.filter((item) => item.status === 'cancelled');
+
   return (
     <section className="card">
       <SectionTitle>Accounts & bank transactions</SectionTitle>
@@ -249,8 +314,48 @@ export default function TransactionsPage({
           <button className="ghost" onClick={() => setShowManager((value) => !value)}>
             {showManager ? 'Hide categories & rules' : 'Categories & rules'}
           </button>
-          <div className="help">Bill view makes confirmed bill rows green and shows the Bill Tracker bill name as the main description.</div>
+          <button className={openSubscriptions.length ? 'brand' : 'ghost'} onClick={() => setShowSubscriptions((value) => !value)}>
+            Subscriptions to cancel{openSubscriptions.length ? ` (${openSubscriptions.length})` : ''}
+          </button>
         </div>
+
+        {showSubscriptions && (
+          <div className="card ruleManagerCard" style={{ marginBottom: 16 }}>
+            <div className="pad">
+              <div><h3>Subscriptions to cancel</h3><div className="help">Use “Need to cancel” on any transaction. The merchant stays here until you mark it cancelled or remove it.</div></div>
+              {openSubscriptions.length ? (
+                <div className="tableScroll">
+                  <table className="transactionTable">
+                    <thead><tr><th>Merchant</th><th>Latest charge</th><th>Amount</th><th>Category</th><th>Actions</th></tr></thead>
+                    <tbody>{openSubscriptions.map((item) => (
+                      <tr key={item.id}>
+                        <td><strong>{item.merchant_name}</strong></td>
+                        <td>{item.latest_transaction_date || '—'}</td>
+                        <td className="mono">{item.latest_amount == null ? '—' : fmtMoney(item.latest_amount)}</td>
+                        <td>{item.spending_category || '—'}</td>
+                        <td><div className="actionStack"><button className="brand mini" onClick={() => setSubscriptionStatus(item, 'cancelled')}>Mark cancelled</button><button className="ghost mini" onClick={() => deleteSubscription(item)}>Remove</button></div></td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              ) : <p className="muted">Nothing is currently marked for cancellation.</p>}
+              {cancelledSubscriptions.length > 0 && (
+                <details style={{ marginTop: 12 }}>
+                  <summary>Cancelled subscriptions ({cancelledSubscriptions.length})</summary>
+                  <div className="tableScroll" style={{ marginTop: 8 }}>
+                    <table className="transactionTable">
+                      <thead><tr><th>Merchant</th><th>Last charge</th><th>Amount</th><th>Actions</th></tr></thead>
+                      <tbody>{cancelledSubscriptions.map((item) => (
+                        <tr key={item.id}><td>{item.merchant_name}</td><td>{item.latest_transaction_date || '—'}</td><td>{item.latest_amount == null ? '—' : fmtMoney(item.latest_amount)}</td><td><button className="ghost mini" onClick={() => setSubscriptionStatus(item, 'open')}>Reopen</button></td></tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                </details>
+              )}
+              {managerStatus && <p className="statusMessage">{managerStatus}</p>}
+            </div>
+          </div>
+        )}
 
         {showManager && (
           <div className="card ruleManagerCard" style={{ marginBottom: 16 }}>
@@ -261,32 +366,13 @@ export default function TransactionsPage({
               </div>
               <div className="toolbar" style={{ flexWrap: 'wrap', marginTop: 8 }}>
                 {categories.length ? categories.map((category) => (
-                  <span className="chip" key={category.id}>
-                    {category.name}
-                    <button className="ghost mini" onClick={() => editCategory(category)}>Edit</button>
-                    <button className="ghost mini" onClick={() => deleteCategory(category)}>Delete</button>
-                  </span>
+                  <span className="chip" key={category.id}>{category.name}<button className="ghost mini" onClick={() => editCategory(category)}>Edit</button><button className="ghost mini" onClick={() => deleteCategory(category)}>Delete</button></span>
                 )) : <span className="muted">No custom categories yet. You can still type a category when characterizing a transaction.</span>}
               </div>
-
-              <div className="toolbar" style={{ marginTop: 16 }}>
-                <div><h3>Automatic categorization rules</h3><div className="help">QuickBooks-style rules apply the same category to matching merchant wording on future Plaid syncs.</div></div>
-              </div>
+              <div className="toolbar" style={{ marginTop: 16 }}><div><h3>Automatic categorization rules</h3><div className="help">QuickBooks-style rules apply the same category to matching merchant wording.</div></div></div>
               {rules.length ? (
-                <div className="tableScroll">
-                  <table className="transactionTable">
-                    <thead><tr><th>If description contains</th><th>Category</th><th>Subcategory</th><th>Action</th></tr></thead>
-                    <tbody>{rules.map((rule) => (
-                      <tr key={rule.id}>
-                        <td><strong>{rule.merchant_pattern}</strong></td>
-                        <td>{rule.spending_category}</td>
-                        <td>{rule.spending_subcategory || '—'}</td>
-                        <td><button className="ghost mini" onClick={() => deleteRule(rule)}>Delete rule</button></td>
-                      </tr>
-                    ))}</tbody>
-                  </table>
-                </div>
-              ) : <p className="muted">No rules yet. Characterize a transaction, then click “Make rule” on that transaction.</p>}
+                <div className="tableScroll"><table className="transactionTable"><thead><tr><th>If description contains</th><th>Category</th><th>Subcategory</th><th>Action</th></tr></thead><tbody>{rules.map((rule) => (<tr key={rule.id}><td><strong>{rule.merchant_pattern}</strong></td><td>{rule.spending_category}</td><td>{rule.spending_subcategory || '—'}</td><td><button className="ghost mini" onClick={() => deleteRule(rule)}>Delete rule</button></td></tr>))}</tbody></table></div>
+              ) : <p className="muted">No rules yet. Characterize a transaction, then click “Make rule”.</p>}
               {managerStatus && <p className="statusMessage">{managerStatus}</p>}
             </div>
           </div>
@@ -294,19 +380,10 @@ export default function TransactionsPage({
 
         <div className="bankToolbar">
           <div><label>Month</label><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></div>
-          <div><label>Account</label><select value={filters.account} onChange={(e) => setFilters({ ...filters, account: e.target.value })}>
-            <option value="all">All shown accounts</option>
-            {shownAccounts.map((account) => <option key={account.account_id} value={account.account_id}>{accountLabel(account)}</option>)}
-          </select></div>
-          <div><label>Bill status</label><select value={filters.billState} onChange={(e) => setFilters({ ...filters, billState: e.target.value })}>
-            <option value="all">All transactions</option><option value="confirmed">Recognized bills</option><option value="suggested">Suggested bills</option><option value="not-bill">Not identified as bills</option>
-          </select></div>
-          <div><label>Characterization</label><select value={filters.classification} onChange={(e) => setFilters({ ...filters, classification: e.target.value })}>
-            <option value="all">All</option><option value="characterized">Characterized</option><option value="uncharacterized">Uncharacterized</option>
-          </select></div>
-          <div><label>Flow / type</label><select value={filters.flow} onChange={(e) => setFilters({ ...filters, flow: e.target.value })}>
-            <option value="all">All</option><option value="in">Money in</option><option value="out">Money out</option><option value="checks">Checks</option><option value="transfers">Transfers</option>
-          </select></div>
+          <div><label>Account</label><select value={filters.account} onChange={(e) => setFilters({ ...filters, account: e.target.value })}><option value="all">All shown accounts</option>{shownAccounts.map((account) => <option key={account.account_id} value={account.account_id}>{accountLabel(account)}</option>)}</select></div>
+          <div><label>Bill status</label><select value={filters.billState} onChange={(e) => setFilters({ ...filters, billState: e.target.value })}><option value="all">All transactions</option><option value="confirmed">Recognized bills</option><option value="suggested">Suggested bills</option><option value="not-bill">Not identified as bills</option></select></div>
+          <div><label>Characterization</label><select value={filters.classification} onChange={(e) => setFilters({ ...filters, classification: e.target.value })}><option value="all">All</option><option value="characterized">Characterized</option><option value="uncharacterized">Uncharacterized</option></select></div>
+          <div><label>Flow / type</label><select value={filters.flow} onChange={(e) => setFilters({ ...filters, flow: e.target.value })}><option value="all">All</option><option value="in">Money in</option><option value="out">Money out</option><option value="checks">Checks</option><option value="transfers">Transfers</option></select></div>
         </div>
 
         <div className="toolbar transactionControls">
@@ -324,16 +401,16 @@ export default function TransactionsPage({
                 const suggestedBill = billsById[tx.suggested_bill_id];
                 const confirmed = isConfirmedBillTransaction(tx);
                 const suggested = isSuggestedBillTransaction(tx);
+                const merchantKey = normalizeMerchant(tx.merchant_name || tx.name || transactionName(tx));
+                const needsCancel = openSubscriptionKeys.has(merchantKey);
                 return (
                   <tr key={tx.transaction_id} className={billView && confirmed ? 'recognizedBillRow' : suggested ? 'suggestedBillRow' : ''}>
                     <td>{tx.date}{tx.pending && <div className="pendingText">pending</div>}</td>
                     <td>{accountLabel(accountsById[tx.account_id])}</td>
-                    <td><strong>{billView && confirmedBill ? confirmedBill.name : transactionName(tx)}</strong>{billView && confirmedBill && <div className="help">Bank: {transactionName(tx)}</div>}</td>
+                    <td><strong>{billView && confirmedBill ? confirmedBill.name : transactionName(tx)}</strong>{billView && confirmedBill && <div className="help">Bank: {transactionName(tx)}</div>}{needsCancel && <div className="warningText">SUBSCRIPTION — CANCEL</div>}</td>
                     <td className={`mono amountCell ${isMoneyIn(tx) ? 'moneyIn' : 'moneyOut'}`}>{isMoneyIn(tx) ? '+' : '-'}{fmtMoney(Math.abs(Number(tx.amount) || 0))}</td>
                     <td>{humanizeFinanceCategory(tx.personal_finance_detailed || tx.personal_finance_primary) || '—'}</td>
-                    <td>
-                      {confirmedBill ? <><span className="chip ok">{confirmedBill.name}</span><div className="help">{Math.round(Number(tx.match_confidence || 0) * 100)}% confirmed</div></> : suggestedBill ? <><span className="chip review">{suggestedBill.name}</span><div className="help">{Math.round(Number(tx.match_confidence || 0) * 100)}% suggestion</div></> : '—'}
-                    </td>
+                    <td>{confirmedBill ? <><span className="chip ok">{confirmedBill.name}</span><div className="help">{Math.round(Number(tx.match_confidence || 0) * 100)}% confirmed</div></> : suggestedBill ? <><span className="chip review">{suggestedBill.name}</span><div className="help">{Math.round(Number(tx.match_confidence || 0) * 100)}% suggestion</div></> : '—'}</td>
                     <td>{tx.spending_category || (tx.classification_status === 'uncharacterized' ? 'Uncharacterized' : '—')}{tx.spending_subcategory && <div className="help">{tx.spending_subcategory}</div>}</td>
                     <td><div className="actionStack">
                       {suggested && <><button className="brand mini" onClick={() => onMatchAction('approve', tx)}>Approve</button><button className="ghost mini" onClick={() => onMatchAction('reject', tx)}>Reject</button></>}
@@ -341,6 +418,8 @@ export default function TransactionsPage({
                       {!confirmed && !suggested && <button className="ghost mini" onClick={() => onLink(tx)}>Link to bill</button>}
                       <button className="ghost mini" onClick={() => onClassify(tx)}>Characterize</button>
                       {tx.spending_category && <button className="ghost mini" onClick={() => makeRule(tx)}>Make rule</button>}
+                      {!needsCancel && Number(tx.amount) > 0 && <button className="ghost mini" onClick={() => flagSubscription(tx)}>Need to cancel</button>}
+                      {needsCancel && <span className="chip review">On cancel list</span>}
                     </div></td>
                   </tr>
                 );
