@@ -35,6 +35,7 @@ export default function TransactionsPage({
   onMatchAction,
 }) {
   const [billView, setBillView] = useState(true);
+  const [sortOrder, setSortOrder] = useState('date-desc');
   const [categories, setCategories] = useState([]);
   const [rules, setRules] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -98,6 +99,12 @@ export default function TransactionsPage({
       if (!needle) return true;
       return [transactionName(tx), tx.name, tx.spending_category, tx.spending_subcategory]
         .filter(Boolean).join(' ').toLowerCase().includes(needle);
+    })
+    .sort((a, b) => {
+      const amountDifference = Math.abs(Number(a.amount) || 0) - Math.abs(Number(b.amount) || 0);
+      if (sortOrder === 'amount-asc' && amountDifference) return amountDifference;
+      if (sortOrder === 'amount-desc' && amountDifference) return -amountDifference;
+      return String(b.date).localeCompare(String(a.date));
     });
 
   function recognizedFor(accountId) {
@@ -388,6 +395,14 @@ export default function TransactionsPage({
 
         <div className="toolbar transactionControls">
           <input placeholder="Search description / category" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
+          <div>
+            <label htmlFor="transaction-sort">Sort by</label>
+            <select id="transaction-sort" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} title="Amount sorting uses transaction size for both money in and money out.">
+              <option value="date-desc">Date: newest first</option>
+              <option value="amount-desc">Amount: greatest to least</option>
+              <option value="amount-asc">Amount: least to greatest</option>
+            </select>
+          </div>
           <button className="brand" onClick={onMatchMonth} disabled={matching}>{matching ? 'Matching...' : 'Find bill payments'}</button>
         </div>
         {matchStatus && <p className="statusMessage">{matchStatus}</p>}
