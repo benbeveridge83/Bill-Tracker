@@ -14,6 +14,8 @@ import {
   transactionName,
 } from '../lib/bank';
 import { Modal } from './ui';
+import BillPicker from './BillPicker';
+import { accountBillCategory, candidateBills, suggestBill } from '../lib/billMatching';
 
 export function BillDialog({
   bill,
@@ -611,12 +613,28 @@ export function LinkBillDialog({
   onCreateBill,
   errorMessage = '',
   status = '',
+  account,
+  mappings = [],
+  rules = [],
+  feedback = [],
+  preferences,
+  onPreferences,
+  aiMatch,
 }) {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [billId, setBillId] = useState(
-    transaction.suggested_bill_id || '',
+    null,
   );
+  const accountCategory = accountBillCategory(account, mappings);
+  const category = preferences.category === 'account' ? accountCategory : preferences.category;
+  const choices = candidateBills(transaction, bills, category, { manual: true });
+  const eligible = candidateBills(transaction, bills, category, { feedback });
+  const aiBill = eligible.find((bill) => bill.id === aiMatch?.bill_id);
+  const storedBill = eligible.find((bill) => bill.id === transaction.suggested_bill_id);
+  const suggestion = aiBill ? { bill: aiBill, ...aiMatch } : storedBill ? { bill: storedBill, source: transaction.match_source, reason: transaction.match_reason }
+    : suggestBill(transaction, bills, { category, rules, feedback });
+  const selected = choices.find((bill) => bill.id === (billId ?? suggestion?.bill.id));
 
   async function link(id) {
     setBusy(true);
@@ -630,7 +648,7 @@ export function LinkBillDialog({
   if (creating) {
     return (
       <BillDialog
-        bill={{ ...blankBill, name: transactionName(transaction), amount: Math.abs(Number(transaction.amount) || 0), anchor: transaction.date }}
+        bill={{ ...blankBill, name: transactionName(transaction), amount: Math.abs(Number(transaction.amount) || 0), anchor: transaction.date, category: category === 'all' ? blankBill.category : category }}
         blankBill={blankBill}
         title="Add bill and link transaction"
         saveLabel="Save and link"
@@ -639,6 +657,7 @@ export function LinkBillDialog({
         onSave={async (form) => {
           const saved = await onCreateBill(form);
           if (!saved) return;
+          if (category !== 'all' && form.category !== category) onPreferences({ category: form.category });
           setBillId(saved.id);
           setCreating(false);
           await link(saved.id);
@@ -666,32 +685,8 @@ export function LinkBillDialog({
         </span>
       </div>
 
-      <div>
-        <label>Bill</label>
-        <select
-          value={billId}
-          disabled={busy}
-          onChange={(event) => {
-            if (event.target.value === 'new-bill') setCreating(true);
-            else setBillId(event.target.value);
-          }}
-        >
-          <option value="">
-            Choose a bill
-          </option>
-          <option value="new-bill">+ Add a new bill...</option>
-
-          {bills.map((bill) => (
-            <option
-              key={bill.id}
-              value={bill.id}
-            >
-              {bill.category} — {bill.name} (
-              {fmtMoney(bill.amount)})
-            </option>
-          ))}
-        </select>
-      </div>
+      {suggestion && <p className="billDialogSuggestion"><strong>{suggestion.source === 'openai' ? 'AI suggestion' : 'Suggested bill'}: {suggestion.bill.name}</strong><span className="help">{suggestion.reason}</span></p>}
+      <BillPicker bills={choices} value={selected?.id || ''} onChange={setBillId} preferences={preferences} onPreferences={onPreferences} accountCategory={accountCategory} disabled={busy} />
 
       <p className="help">
         Approving teaches Bill Tracker this bank
@@ -703,8 +698,8 @@ export function LinkBillDialog({
         <button className="ghost" disabled={busy} onClick={() => setCreating(true)}>+ Add a new bill</button>
         <button
           className="brand"
-          disabled={!billId || busy}
-          onClick={() => link(billId)}
+          disabled={!selected || busy}
+          onClick={() => link(selected.id)}
         >
           {busy ? 'Linking...' : 'Approve and learn'}
         </button>

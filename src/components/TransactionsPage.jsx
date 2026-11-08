@@ -13,6 +13,8 @@ import { supabase } from '../lib/supabaseClient';
 import { SectionTitle } from './ui';
 import CheckboxFilter from './CheckboxFilter';
 import { matchesTransactionFilters } from '../lib/transactionFilters';
+import { accountBillCategory } from '../lib/billMatching';
+import TransactionBillMatch from './TransactionBillMatch';
 
 function normalizeMerchant(value) {
   return String(value || '')
@@ -35,6 +37,13 @@ export default function TransactionsPage({
   onClassify,
   onLink,
   onMatchAction,
+  mappings = [],
+  matchRules = [],
+  matchFeedback = [],
+  billPickerPreferences,
+  onBillPickerPreferences,
+  aiSuggestions,
+  onAccountBillCategory,
 }) {
   const [billView, setBillView] = useState(true);
   const [sortOrder, setSortOrder] = useState('date-desc');
@@ -295,6 +304,12 @@ export default function TransactionsPage({
                   <div><dt>Recognized bills</dt><dd>{fmtMoney(recognized)}</dd></div>
                   <div><dt>Balance − recognized bills</dt><dd>{fmtMoney(current - recognized)}</dd></div>
                 </dl>
+                <label htmlFor={`account-bill-category-${account.account_id}`}>Suggest bills from</label>
+                <select id={`account-bill-category-${account.account_id}`} value={accountBillCategory(account, mappings)} onChange={(event) => onAccountBillCategory(account.account_id, event.target.value)}>
+                  <option value="Business">Business bills</option>
+                  <option value="Household">Household bills</option>
+                  <option value="all">All bills</option>
+                </select>
               </div>
             );
           })}
@@ -393,31 +408,29 @@ export default function TransactionsPage({
           <button className="brand" onClick={onMatchMonth} disabled={matching}>{matching ? 'Matching...' : 'Find bill payments'}</button>
         </div>
         {matchStatus && <p className="statusMessage">{matchStatus}</p>}
+        {aiSuggestions.status && <div className="statusMessage toolbar" role="status"><span>{aiSuggestions.status}</span><button className="ghost mini" disabled={aiSuggestions.loading} onClick={aiSuggestions.retry}>{aiSuggestions.loading ? 'Checking...' : 'Retry AI suggestions'}</button></div>}
 
         {monthTransactions.length ? (
           <div className="tableScroll">
             <table className="transactionTable">
-              <thead><tr><th>Show</th><th>Date</th><th>Account</th><th>Description</th><th>Amount</th><th>Bank category</th><th>Bill match</th><th>Spending category</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Show</th><th>Date</th><th>Account</th><th>Description</th><th>Amount</th><th>Bank category</th><th>Spending category</th><th>Actions</th></tr></thead>
               <tbody>{monthTransactions.map((tx) => {
                 const confirmedBill = billsById[tx.matched_bill_id];
-                const suggestedBill = billsById[tx.suggested_bill_id];
                 const confirmed = isConfirmedBillTransaction(tx);
                 const suggested = isSuggestedBillTransaction(tx);
                 const merchantKey = normalizeMerchant(tx.merchant_name || tx.name || transactionName(tx));
                 const needsCancel = openSubscriptionKeys.has(merchantKey);
                 return (
-                  <tr key={tx.transaction_id} className={billView && confirmed ? 'recognizedBillRow' : suggested ? 'suggestedBillRow' : ''}>
+                  <React.Fragment key={tx.transaction_id}>
+                  <tr className={billView && confirmed ? 'recognizedBillRow' : suggested ? 'suggestedBillRow' : ''}>
                     <td><input className="transactionVisibilityCheckbox" type="checkbox" checked aria-label={`Show ${transactionName(tx)} on ${tx.date}`} title="Uncheck to hide this row. Use Show all to restore it." onChange={() => setHiddenTransactions((previous) => new Set([...previous, tx.transaction_id]))} /></td>
                     <td>{tx.date}{tx.pending && <div className="pendingText">pending</div>}</td>
                     <td>{accountLabel(accountsById[tx.account_id])}</td>
-                    <td><strong>{billView && confirmedBill ? confirmedBill.name : transactionName(tx)}</strong>{billView && confirmedBill && <div className="help">Bank: {transactionName(tx)}</div>}{needsCancel && <div className="warningText">SUBSCRIPTION — CANCEL</div>}</td>
+                    <td><button className="transactionMerchantButton" onClick={() => onLink(tx)}>{billView && confirmedBill ? confirmedBill.name : transactionName(tx)}</button>{billView && confirmedBill && <div className="help">Bank: {transactionName(tx)}</div>}{needsCancel && <div className="warningText">SUBSCRIPTION — CANCEL</div>}</td>
                     <td className={`mono amountCell ${isMoneyIn(tx) ? 'moneyIn' : 'moneyOut'}`}>{isMoneyIn(tx) ? '+' : '-'}{fmtMoney(Math.abs(Number(tx.amount) || 0))}</td>
                     <td>{humanizeFinanceCategory(tx.personal_finance_detailed || tx.personal_finance_primary) || '—'}</td>
-                    <td>{confirmedBill ? <><span className="chip ok">{confirmedBill.name}</span><div className="help">{Math.round(Number(tx.match_confidence || 0) * 100)}% confirmed</div></> : suggestedBill ? <><span className="chip review">{suggestedBill.name}</span><div className="help">{Math.round(Number(tx.match_confidence || 0) * 100)}% suggestion</div></> : '—'}</td>
                     <td>{tx.spending_category || (tx.classification_status === 'uncharacterized' ? 'Uncharacterized' : '—')}{tx.spending_subcategory && <div className="help">{tx.spending_subcategory}</div>}</td>
                     <td><div className="actionStack">
-                      {suggested && <><button className="brand mini" onClick={() => onMatchAction('approve', tx)}>Approve</button><button className="ghost mini" onClick={() => onMatchAction('reject', tx)}>Reject</button></>}
-                      {confirmed && <button className="ghost mini" onClick={() => onMatchAction('unmatch', tx)}>Remove bill match</button>}
                       {!confirmed && !suggested && <button className="ghost mini" onClick={() => onLink(tx)}>Link to bill</button>}
                       <button className="ghost mini" onClick={() => onClassify(tx)}>Characterize</button>
                       {tx.spending_category && <button className="ghost mini" onClick={() => makeRule(tx)}>Make rule</button>}
@@ -425,6 +438,11 @@ export default function TransactionsPage({
                       {needsCancel && <span className="chip review">On cancel list</span>}
                     </div></td>
                   </tr>
+                  <tr className="transactionMatchRow"><td colSpan={8}>
+                    <TransactionBillMatch transaction={tx} bills={bills} account={accountsById[tx.account_id]} mappings={mappings} rules={matchRules} feedback={matchFeedback}
+                      preferences={billPickerPreferences} onPreferences={onBillPickerPreferences} aiMatch={aiSuggestions.matches[tx.transaction_id]} onMatchAction={onMatchAction} onLink={onLink} />
+                  </td></tr>
+                  </React.Fragment>
                 );
               })}</tbody>
             </table>
