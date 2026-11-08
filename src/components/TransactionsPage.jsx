@@ -11,6 +11,8 @@ import {
 } from '../lib/bank';
 import { supabase } from '../lib/supabaseClient';
 import { SectionTitle } from './ui';
+import CheckboxFilter from './CheckboxFilter';
+import { matchesTransactionFilters } from '../lib/transactionFilters';
 
 function normalizeMerchant(value) {
   return String(value || '')
@@ -36,6 +38,7 @@ export default function TransactionsPage({
 }) {
   const [billView, setBillView] = useState(true);
   const [sortOrder, setSortOrder] = useState('date-desc');
+  const [hiddenTransactions, setHiddenTransactions] = useState(new Set());
   const [categories, setCategories] = useState([]);
   const [rules, setRules] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -75,25 +78,8 @@ export default function TransactionsPage({
   const monthTransactions = transactions
     .filter((tx) => inMonth(tx.date, month))
     .filter((tx) => Boolean(accountsById[tx.account_id]))
-    .filter((tx) => filters.account === 'all' || tx.account_id === filters.account)
-    .filter((tx) => {
-      if (filters.billState === 'confirmed') return isConfirmedBillTransaction(tx);
-      if (filters.billState === 'suggested') return isSuggestedBillTransaction(tx);
-      if (filters.billState === 'not-bill') return !tx.matched_bill_id && !tx.suggested_bill_id;
-      return true;
-    })
-    .filter((tx) => {
-      if (filters.classification === 'characterized') return tx.classification_status !== 'uncharacterized';
-      if (filters.classification === 'uncharacterized') return tx.classification_status === 'uncharacterized';
-      return true;
-    })
-    .filter((tx) => {
-      if (filters.flow === 'in') return Number(tx.amount) < 0;
-      if (filters.flow === 'out') return Number(tx.amount) > 0;
-      if (filters.flow === 'checks') return Boolean(tx.is_check);
-      if (filters.flow === 'transfers') return Boolean(tx.is_transfer);
-      return true;
-    })
+    .filter((tx) => matchesTransactionFilters(tx, filters))
+    .filter((tx) => !hiddenTransactions.has(tx.transaction_id))
     .filter((tx) => {
       const needle = String(filters.search || '').trim().toLowerCase();
       if (!needle) return true;
@@ -387,14 +373,15 @@ export default function TransactionsPage({
 
         <div className="bankToolbar">
           <div><label>Month</label><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></div>
-          <div><label>Account</label><select value={filters.account} onChange={(e) => setFilters({ ...filters, account: e.target.value })}><option value="all">All shown accounts</option>{shownAccounts.map((account) => <option key={account.account_id} value={account.account_id}>{accountLabel(account)}</option>)}</select></div>
-          <div><label>Bill status</label><select value={filters.billState} onChange={(e) => setFilters({ ...filters, billState: e.target.value })}><option value="all">All transactions</option><option value="confirmed">Recognized bills</option><option value="suggested">Suggested bills</option><option value="not-bill">Not identified as bills</option></select></div>
-          <div><label>Characterization</label><select value={filters.classification} onChange={(e) => setFilters({ ...filters, classification: e.target.value })}><option value="all">All</option><option value="characterized">Characterized</option><option value="uncharacterized">Uncharacterized</option></select></div>
-          <div><label>Flow / type</label><select value={filters.flow} onChange={(e) => setFilters({ ...filters, flow: e.target.value })}><option value="all">All</option><option value="in">Money in</option><option value="out">Money out</option><option value="checks">Checks</option><option value="transfers">Transfers</option></select></div>
+          <CheckboxFilter label="Account" options={shownAccounts.map((account) => ({ value: account.account_id, label: accountLabel(account) }))} value={filters.account} onChange={(account) => setFilters({ ...filters, account })} />
+          <CheckboxFilter label="Bill status" options={[{ value: 'confirmed', label: 'Recognized bills' }, { value: 'suggested', label: 'Suggested bills' }, { value: 'not-bill', label: 'Not identified as bills' }]} value={filters.billState} onChange={(billState) => setFilters({ ...filters, billState })} />
+          <CheckboxFilter label="Characterization" options={[{ value: 'characterized', label: 'Characterized' }, { value: 'uncharacterized', label: 'Uncharacterized' }]} value={filters.classification} onChange={(classification) => setFilters({ ...filters, classification })} />
+          <CheckboxFilter label="Flow / type" options={[{ value: 'in', label: 'Money in' }, { value: 'out', label: 'Money out' }, { value: 'checks', label: 'Checks' }, { value: 'transfers', label: 'Transfers' }]} value={filters.flow} onChange={(flow) => setFilters({ ...filters, flow })} />
         </div>
 
         <div className="toolbar transactionControls">
           <input placeholder="Search description / category" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
+          <button className="ghost" disabled={!hiddenTransactions.size} onClick={() => setHiddenTransactions(new Set())}>Show all{hiddenTransactions.size ? ` (${hiddenTransactions.size} hidden)` : ''}</button>
           <div>
             <label htmlFor="transaction-sort">Sort by</label>
             <select id="transaction-sort" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} title="Amount sorting uses transaction size for both money in and money out.">
@@ -410,7 +397,7 @@ export default function TransactionsPage({
         {monthTransactions.length ? (
           <div className="tableScroll">
             <table className="transactionTable">
-              <thead><tr><th>Date</th><th>Account</th><th>Description</th><th>Amount</th><th>Bank category</th><th>Bill match</th><th>Spending category</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Show</th><th>Date</th><th>Account</th><th>Description</th><th>Amount</th><th>Bank category</th><th>Bill match</th><th>Spending category</th><th>Actions</th></tr></thead>
               <tbody>{monthTransactions.map((tx) => {
                 const confirmedBill = billsById[tx.matched_bill_id];
                 const suggestedBill = billsById[tx.suggested_bill_id];
@@ -420,6 +407,7 @@ export default function TransactionsPage({
                 const needsCancel = openSubscriptionKeys.has(merchantKey);
                 return (
                   <tr key={tx.transaction_id} className={billView && confirmed ? 'recognizedBillRow' : suggested ? 'suggestedBillRow' : ''}>
+                    <td><input className="transactionVisibilityCheckbox" type="checkbox" checked aria-label={`Show ${transactionName(tx)} on ${tx.date}`} title="Uncheck to hide this row. Use Show all to restore it." onChange={() => setHiddenTransactions((previous) => new Set([...previous, tx.transaction_id]))} /></td>
                     <td>{tx.date}{tx.pending && <div className="pendingText">pending</div>}</td>
                     <td>{accountLabel(accountsById[tx.account_id])}</td>
                     <td><strong>{billView && confirmedBill ? confirmedBill.name : transactionName(tx)}</strong>{billView && confirmedBill && <div className="help">Bank: {transactionName(tx)}</div>}{needsCancel && <div className="warningText">SUBSCRIPTION — CANCEL</div>}</td>
@@ -441,7 +429,7 @@ export default function TransactionsPage({
               })}</tbody>
             </table>
           </div>
-        ) : <p className="emptyState">No transactions match these filters. Sync Plaid or choose another month.</p>}
+        ) : <p className="emptyState">{hiddenTransactions.size ? 'No visible transactions match these filters. Use Show all to restore hidden rows, or adjust your filters.' : 'No transactions match these filters. Sync Plaid or choose another month.'}</p>}
       </div>
     </section>
   );

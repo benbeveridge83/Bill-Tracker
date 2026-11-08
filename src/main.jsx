@@ -949,7 +949,9 @@ function BillsApp({ session }) {
           .insert({
             ...payload,
             user_id: session.user.id,
-          });
+          })
+          .select('id')
+          .single();
 
     if (result.error) {
       setAppStatus(
@@ -961,6 +963,7 @@ function BillsApp({ session }) {
     setEditing(null);
     setAppStatus('');
     await loadAll();
+    return result.data || form;
   }
 
   async function deleteBill(id) {
@@ -1990,7 +1993,11 @@ function BillsApp({ session }) {
             onClassify={
               setClassifying
             }
-            onLink={setLinking}
+            onLink={(transaction) => {
+              setMatchStatus('');
+              setAppStatus('');
+              setLinking(transaction);
+            }}
             onMatchAction={
               matchTransaction
             }
@@ -2068,6 +2075,7 @@ function BillsApp({ session }) {
           }
           onSave={saveBill}
           onDelete={deleteBill}
+          errorMessage={appStatus}
         />
       )}
 
@@ -2098,6 +2106,10 @@ function BillsApp({ session }) {
       {linking && (
         <LinkBillDialog
           transaction={linking}
+          blankBill={blankBill}
+          onCreateBill={saveBill}
+          errorMessage={appStatus}
+          status={matchStatus}
           bills={bills.filter(
             (bill) => !bill.archived,
           )}

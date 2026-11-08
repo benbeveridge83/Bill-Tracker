@@ -47,6 +47,12 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .controls { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(160px, 220px) auto auto; }
 .transactionControls { margin: 12px 0; }
 .transactionControls input { min-width: 260px; flex: 1; }
+.filterLabel { margin-bottom: 6px; color: var(--muted); font-size: 0.9rem; }
+.checkboxFilter { min-width: 0; }
+.checkboxFilter summary { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; overflow-wrap: anywhere; }
+.checkboxFilterOptions { padding: 8px; margin-top: 4px; border: 1px solid var(--line); border-radius: 10px; max-height: 280px; overflow-y: auto; }
+.checkboxFilterOption { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0; color: var(--ink); overflow-wrap: anywhere; }
+.checkboxFilterOption input, .transactionVisibilityCheckbox { width: auto; min-width: auto; flex: 0 0 auto; margin: 4px 0 0; padding: 0; accent-color: var(--brand); }
 .kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .k { padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: #ffffff; }
 .k strong { display: block; margin-top: 2px; font-size: 1.15rem; }
