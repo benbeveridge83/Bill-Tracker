@@ -29,6 +29,8 @@ import Tracker from './components/Tracker';
 import TransactionsPage from './components/TransactionsPage';
 import SpendingPage from './components/SpendingPage';
 import PlaidPanel from './components/PlaidPanel';
+import { accountBillCategory, readPickerPreferences, sanitizePickerPreferences } from './lib/billMatching';
+import useAiBillSuggestions from './lib/useAiBillSuggestions';
 import {
   PayLog,
   Summary,
@@ -176,7 +178,7 @@ function App() {
 
   if (!session) return <Auth />;
 
-  return <BillsApp session={session} />;
+  return <BillsApp key={session.user.id} session={session} />;
 }
 
 function Auth() {
@@ -369,6 +371,16 @@ function BillsApp({ session }) {
   ] = useState([]);
   const [matchRules, setMatchRules] =
     useState([]);
+  const [matchFeedback, setMatchFeedback] = useState([]);
+  const [billPickerPreferences, setBillPickerPreferences] = useState(() => readPickerPreferences(session.user.id));
+
+  function updateBillPickerPreferences(changes) {
+    setBillPickerPreferences((previous) => {
+      const next = sanitizePickerPreferences({ ...previous, ...changes });
+      try { localStorage.setItem(`billtracker:bill-picker:${session.user.id}`, JSON.stringify(next)); } catch { /* Keep the current choice if browser storage is unavailable. */ }
+      return next;
+    });
+  }
 
   const [view, setView] =
     useState('dashboard');
@@ -448,6 +460,7 @@ function BillsApp({ session }) {
         transactionsResult,
         mappingsResult,
         rulesResult,
+        feedbackResult,
       ] = await Promise.all([
         supabase
           .from('bills')
@@ -485,6 +498,7 @@ function BillsApp({ session }) {
           .order('last_confirmed_at', {
             ascending: false,
           }),
+        fetchPagedRows({ table: 'bill_match_feedback', orderColumn: 'updated_at', ascending: false }),
       ]);
 
       const results = [
@@ -495,6 +509,7 @@ function BillsApp({ session }) {
         transactionsResult,
         mappingsResult,
         rulesResult,
+        feedbackResult,
       ];
 
       const failures = results
@@ -543,6 +558,7 @@ function BillsApp({ session }) {
           rulesResult.data || [],
         );
       }
+      if (!feedbackResult.error) setMatchFeedback(feedbackResult.data || []);
     },
     [],
   );
@@ -550,6 +566,23 @@ function BillsApp({ session }) {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  const requestBillSuggestions = useCallback((transactionIds, category) => invokeFunction('suggest-bill-matches', {
+    body: { transaction_ids: transactionIds, category },
+  }), []);
+  const aiSuggestions = useAiBillSuggestions({
+    transactions: plaidTransactions.filter((tx) => inMonth(tx.date, bankMonth) || tx.transaction_id === linking?.transaction_id),
+    contextKey: JSON.stringify({
+      category: billPickerPreferences.category,
+      bills: bills.map((bill) => [bill.id, bill.name, bill.amount, bill.category, bill.archived, bill.bank_account_id, bill.match_mode, bill.match_keywords]),
+      accounts: accounts.map((account) => [account.account_id, accountBillCategory(account, accountMappings)]),
+      feedback: matchFeedback.map((item) => [item.transaction_id, item.bill_id, item.decision]),
+      rules: matchRules.map((rule) => [rule.bill_id, rule.account_id, rule.normalized_descriptor, rule.amount_average, rule.active]),
+    }),
+    category: billPickerPreferences.category,
+    enabled: view === 'transactions' || Boolean(linking),
+    request: requestBillSuggestions,
+  });
 
   const legacyDataAvailable =
     Boolean(
@@ -1354,6 +1387,15 @@ function BillsApp({ session }) {
     );
   }
 
+  async function saveAccountBillCategory(accountId, category) {
+    const { error } = await supabase.from('plaid_accounts')
+      .update({ bill_match_category: category })
+      .eq('user_id', session.user.id).eq('account_id', accountId);
+    if (error) { setMatchStatus(error.message); return; }
+    setAccounts((previous) => previous.map((account) => account.account_id === accountId ? { ...account, bill_match_category: category } : account));
+    setMatchStatus('Account bill category saved. Suggestions now use this setting.');
+  }
+
   async function runAiMatch() {
     const categoriesToCheck =
       filters.category === 'all'
@@ -1984,6 +2026,13 @@ function BillsApp({ session }) {
             accounts={accounts}
             bills={bills}
             filters={bankFilters}
+            mappings={accountMappings}
+            matchRules={matchRules}
+            matchFeedback={matchFeedback}
+            billPickerPreferences={billPickerPreferences}
+            onBillPickerPreferences={updateBillPickerPreferences}
+            aiSuggestions={aiSuggestions}
+            onAccountBillCategory={saveAccountBillCategory}
             setFilters={
               setBankFilters
             }
@@ -2106,6 +2155,13 @@ function BillsApp({ session }) {
       {linking && (
         <LinkBillDialog
           transaction={linking}
+          account={accounts.find((account) => account.account_id === linking.account_id)}
+          mappings={accountMappings}
+          rules={matchRules}
+          feedback={matchFeedback}
+          preferences={billPickerPreferences}
+          onPreferences={updateBillPickerPreferences}
+          aiMatch={aiSuggestions.matches[linking.transaction_id]}
           blankBill={blankBill}
           onCreateBill={saveBill}
           errorMessage={appStatus}

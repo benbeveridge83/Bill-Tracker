@@ -11,3 +11,7 @@ verify_jwt = false
 
 [functions.plaid-disconnect-item]
 verify_jwt = false
+
+[functions.suggest-bill-matches]
+# The function verifies the signed-in user with getUser before accessing data.
+verify_jwt = false
