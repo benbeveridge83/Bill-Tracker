@@ -9,6 +9,8 @@ import {
   monthLabel,
 } from '../lib/bank';
 import { Kpi, SectionTitle } from './ui';
+import CheckboxFilter from './CheckboxFilter';
+import { filterIncludes } from '../lib/transactionFilters';
 
 export default function SpendingPage({
   month,
@@ -27,11 +29,7 @@ export default function SpendingPage({
     (transaction) =>
       inMonth(transaction.date, month) &&
       !transaction.pending &&
-      (
-        accountFilter === 'all' ||
-        transaction.account_id ===
-          accountFilter
-      ),
+      filterIncludes(accountFilter, transaction.account_id),
   );
 
   const moneyInTransactions =
@@ -186,28 +184,7 @@ export default function SpendingPage({
         </div>
 
         <div className="wideControl">
-          <label>Account</label>
-          <select
-            value={accountFilter}
-            onChange={(event) =>
-              setAccountFilter(
-                event.target.value,
-              )
-            }
-          >
-            <option value="all">
-              All connected accounts
-            </option>
-
-            {accounts.map((account) => (
-              <option
-                key={account.account_id}
-                value={account.account_id}
-              >
-                {accountLabel(account)}
-              </option>
-            ))}
-          </select>
+          <CheckboxFilter label="Account" options={accounts.map((account) => ({ value: account.account_id, label: accountLabel(account) }))} value={accountFilter} onChange={setAccountFilter} />
         </div>
       </div>
 

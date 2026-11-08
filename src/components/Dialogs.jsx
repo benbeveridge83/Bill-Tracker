@@ -21,7 +21,12 @@ export function BillDialog({
   onClose,
   onSave,
   onDelete,
+  title = 'Bill',
+  saveLabel = 'Save',
+  errorMessage = '',
 }) {
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [form, setForm] = useState({
     ...blankBill,
     ...bill,
@@ -39,6 +44,19 @@ export function BillDialog({
     }));
   }
 
+  async function save() {
+    if (saving) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onSave(form);
+    } catch (error) {
+      setSaveError(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const tolerancePercent = Math.round(
     Number(
       form.match_amount_tolerance ?? 0.15,
@@ -47,8 +65,8 @@ export function BillDialog({
 
   return (
     <Modal
-      title="Bill"
-      onClose={onClose}
+      title={title}
+      onClose={saving ? () => {} : onClose}
       wide
     >
       <div className="row">
@@ -320,20 +338,20 @@ export function BillDialog({
         </div>
       </div>
 
-      <div
-        className="toolbar"
-        style={{ marginTop: 12 }}
-      >
+      {(saveError || errorMessage) && <p className="errorMessage" role="alert">{saveError || errorMessage}</p>}
+      <div className="toolbar" style={{ marginTop: 12 }}>
         <button
           className="brand"
-          onClick={() => onSave(form)}
+          disabled={saving}
+          onClick={save}
         >
-          Save
+          {saving ? 'Saving...' : saveLabel}
         </button>
 
         <button
           className="ghost"
           onClick={onClose}
+          disabled={saving}
         >
           Close
         </button>
@@ -341,6 +359,7 @@ export function BillDialog({
         {form.id && (
           <button
             className="destr right"
+            disabled={saving}
             onClick={() =>
               onDelete(form.id)
             }
@@ -588,15 +607,50 @@ export function LinkBillDialog({
   bills,
   onClose,
   onLink,
+  blankBill,
+  onCreateBill,
+  errorMessage = '',
+  status = '',
 }) {
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [billId, setBillId] = useState(
     transaction.suggested_bill_id || '',
   );
 
+  async function link(id) {
+    setBusy(true);
+    try {
+      await onLink(transaction, id);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (creating) {
+    return (
+      <BillDialog
+        bill={{ ...blankBill, name: transactionName(transaction), amount: Math.abs(Number(transaction.amount) || 0), anchor: transaction.date }}
+        blankBill={blankBill}
+        title="Add bill and link transaction"
+        saveLabel="Save and link"
+        errorMessage={errorMessage}
+        onClose={() => setCreating(false)}
+        onSave={async (form) => {
+          const saved = await onCreateBill(form);
+          if (!saved) return;
+          setBillId(saved.id);
+          setCreating(false);
+          await link(saved.id);
+        }}
+      />
+    );
+  }
+
   return (
     <Modal
       title="Link transaction to a bill"
-      onClose={onClose}
+      onClose={busy ? () => {} : onClose}
     >
       <div className="transactionSummary">
         <strong>
@@ -616,13 +670,16 @@ export function LinkBillDialog({
         <label>Bill</label>
         <select
           value={billId}
-          onChange={(event) =>
-            setBillId(event.target.value)
-          }
+          disabled={busy}
+          onChange={(event) => {
+            if (event.target.value === 'new-bill') setCreating(true);
+            else setBillId(event.target.value);
+          }}
         >
           <option value="">
             Choose a bill
           </option>
+          <option value="new-bill">+ Add a new bill...</option>
 
           {bills.map((bill) => (
             <option
@@ -643,23 +700,24 @@ export function LinkBillDialog({
       </p>
 
       <div className="toolbar">
+        <button className="ghost" disabled={busy} onClick={() => setCreating(true)}>+ Add a new bill</button>
         <button
           className="brand"
-          disabled={!billId}
-          onClick={() =>
-            onLink(transaction, billId)
-          }
+          disabled={!billId || busy}
+          onClick={() => link(billId)}
         >
-          Approve and learn
+          {busy ? 'Linking...' : 'Approve and learn'}
         </button>
 
         <button
           className="ghost"
           onClick={onClose}
+          disabled={busy}
         >
           Close
         </button>
       </div>
+      {status && <p className="statusMessage" role="status">{status}</p>}
     </Modal>
   );
 }
