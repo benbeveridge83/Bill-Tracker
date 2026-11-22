@@ -11,7 +11,8 @@ import {
   transactionName,
 } from '../lib/bank';
 import { supabase } from '../lib/supabaseClient';
-import { MatchModeLabel, SectionTitle } from './ui';
+import { MatchModeLabel, Modal, SectionTitle } from './ui';
+import { trackerMonthAmount } from '../lib/trackerAmounts';
 
 function legacyTrackerMarksForBills(bills) {
   try {
@@ -80,6 +81,8 @@ export default function Tracker({
   getMark,
   transactionsForBillMonth,
   onMonth,
+  availableAccounts = [],
+  accountMappings = [],
 }) {
   const year = today().getFullYear();
   const nowMonth = today().getMonth() + 1;
@@ -91,6 +94,8 @@ export default function Tracker({
   const [matching, setMatching] = useState(false);
   const [matchStatus, setMatchStatus] = useState('');
   const [historyStatus, setHistoryStatus] = useState('');
+  const [finding, setFinding] = useState(null);
+  const activeAccounts = availableAccounts.filter((account) => !account.is_hidden && !account.connection_inactive);
   const restoreAttempted = useRef(false);
 
   const legacyPaidMarks = useMemo(
@@ -208,6 +213,11 @@ export default function Tracker({
     return bill.bank_account_id || mappingByCategory[bill.category] || '';
   }
 
+  function openFinder(bill) {
+    const preferred = bill.bank_account_id || accountMappings.find((mapping) => mapping.bill_category === bill.category)?.account_id;
+    setFinding({ bill, accountId: activeAccounts.some((account) => account.account_id === preferred) ? preferred : activeAccounts[0]?.account_id || '', month: currentMonth });
+  }
+
   function matchFor(bill, month) {
     const monthValue = `${year}-${String(month).padStart(2, '0')}`;
     const rows = bankTransactions.filter(
@@ -317,13 +327,14 @@ export default function Tracker({
     const suggested = rows.some(isSuggestedBillTransaction);
     const past = month < nowMonth;
     const cls = confirmed || mark?.paid ? 'green' : suggested ? 'reviewBox' : past ? 'red' : '';
+    const amount = trackerMonthAmount(rows, mark, monthlyEq(bill));
     return (
       <td key={month} className={`mcol ${month === nowMonth ? 'mNow' : ''}`}>
         <button className={`box ${cls}`} onClick={() => onMonth(bill, year, month)}>
-          <span>${Math.round(monthlyEq(bill))}</span>
+          <span>${Math.round(amount)}</span>
           {confirmed && <small>BANK</small>}
           {!confirmed && mark?.source === 'plaid' && <small>BANK</small>}
-          {!confirmed && suggested && <small>REVIEW</small>}
+          {!confirmed && !mark?.paid && suggested && <small>REVIEW</small>}
         </button>
       </td>
     );
@@ -403,7 +414,7 @@ export default function Tracker({
                 <thead><tr><th>Name / Actions</th><th>Cat.</th><th>Subcat.</th><th>Monthly</th><th>Ovd.</th><th>Bal.</th>{Array.from({ length: 12 }, (_, i) => <th key={i} className={`mhead mcol ${i + 1 === nowMonth ? 'mNow' : ''}`}>{monthNameShort(i + 1)}</th>)}</tr></thead>
                 <tbody>{sorted.map((bill) => (
                   <tr key={bill.id} className="rowMain">
-                    <td><div className="toolbar"><strong>{bill.name}</strong>{bill.autopay && <span className="autopayBadge">AUTOPAY</span>}<MatchModeLabel mode={bill.match_mode} compact /></div></td>
+                    <td><div className="toolbar trackerBillActions"><strong>{bill.name}</strong>{bill.autopay && <span className="autopayBadge">AUTOPAY</span>}<MatchModeLabel mode={bill.match_mode} compact /><button className="ghost mini" onClick={() => openFinder(bill)}>Find Transactions</button></div></td>
                     <td>{bill.category}</td><td>{bill.subcategory}</td><td className="mono">{fmtMoney(monthlyEq(bill))}</td><td>{fmtMoney(bill.overdue)}</td><td>{fmtMoney(bill.balance)}</td>
                     {Array.from({ length: 12 }, (_, i) => monthCell(bill, i + 1))}
                   </tr>
@@ -413,6 +424,24 @@ export default function Tracker({
           </>
         )}
       </div>
+      {finding && <Modal title={`Find transactions for ${finding.bill.name}`} onClose={() => setFinding(null)}>
+        <p className="help">Choose a bank account and bill month. The transactions open in a new window so you can search and match a payment.</p>
+        <label htmlFor="find-bill-account">Bank account</label>
+        <select id="find-bill-account" value={finding.accountId} onChange={(event) => setFinding({ ...finding, accountId: event.target.value })}>
+          <option value="">Choose an account</option>
+          {activeAccounts.map((account) => <option key={account.account_id} value={account.account_id}>{accountShortLabel(account)}</option>)}
+        </select>
+        <label htmlFor="find-bill-month">Bill month</label>
+        <input id="find-bill-month" type="month" value={finding.month} onChange={(event) => setFinding({ ...finding, month: event.target.value })} />
+        <div className="toolbar"><button className="brand" disabled={!finding.accountId || !/^\d{4}-(0[1-9]|1[0-2])$/.test(finding.month)} onClick={() => {
+          const url = new URL(window.location.href);
+          url.searchParams.set('findBill', finding.bill.id);
+          url.searchParams.set('account', finding.accountId);
+          url.searchParams.set('month', finding.month);
+          window.open(url.toString(), '_blank', 'noopener');
+          setFinding(null);
+        }}>Open transactions</button><button className="ghost" onClick={() => setFinding(null)}>Cancel</button></div>
+      </Modal>}
     </section>
   );
 }

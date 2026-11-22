@@ -30,6 +30,7 @@ import BillMatchReview from './components/BillMatchReview';
 import { pendingBillMatches } from './lib/billReview';
 import TransactionsPage from './components/TransactionsPage';
 import TransactionSummaryPage from './components/TransactionSummaryPage';
+import FindBillTransactions from './components/FindBillTransactions';
 import SpendingPage from './components/SpendingPage';
 import PlaidPanel from './components/PlaidPanel';
 import { accountBillCategory, readPickerPreferences, sanitizePickerPreferences } from './lib/billMatching';
@@ -47,7 +48,7 @@ import {
 } from './components/Dialogs';
 import './styles.css';
 
-const APP_VERSION = '0.3.1';
+const APP_VERSION = '0.3.2';
 const PAGE_SIZE = 1000;
 const MAX_PAGES = 20;
 
@@ -386,7 +387,7 @@ function BillsApp({ session }) {
   }
 
   const [view, setView] =
-    useState('dashboard');
+    useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('findBill') ? 'find-transactions' : 'dashboard');
 
   const [filters, setFilters] =
     useState({
@@ -570,6 +571,12 @@ function BillsApp({ session }) {
 
   useEffect(() => {
     loadAll();
+  }, [loadAll]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    window.addEventListener('focus', loadAll);
+    return () => window.removeEventListener('focus', loadAll);
   }, [loadAll]);
 
   const requestBillSuggestions = useCallback((transactionIds, category) => invokeFunction('suggest-bill-matches', {
@@ -2089,6 +2096,8 @@ function BillsApp({ session }) {
             expanded={expanded}
             setExpanded={setExpanded}
             getMark={getMark}
+            availableAccounts={accounts}
+            accountMappings={accountMappings}
             transactionsForBillMonth={
               transactionsForBillMonth
             }
@@ -2105,6 +2114,23 @@ function BillsApp({ session }) {
             }
           />
         )}
+
+        {view === 'find-transactions' && (() => {
+          const params = new URLSearchParams(window.location.search);
+          const bill = bills.find((item) => item.id === params.get('findBill'));
+          const account = accounts.find((item) => item.account_id === params.get('account') && !item.is_hidden && !item.connection_inactive);
+          return <FindBillTransactions
+            bill={bill}
+            account={account}
+            month={params.get('month') || currentMonthValue()}
+            transactions={plaidTransactions}
+            bills={bills}
+            onMatch={async (transaction, selectedBill) => {
+              await invokeFunction('bill-match-action', { body: { action: 'approve', transaction_id: transaction.transaction_id, bill_id: selectedBill.id } });
+              await loadAll();
+            }}
+          />;
+        })()}
 
         {view === 'review' && (
           <BillMatchReview matches={billMatchesToReview} accounts={accounts} onDecide={decideBillMatches} />

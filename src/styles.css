@@ -124,6 +124,7 @@ table.tracker th { position: sticky; z-index: 2; top: 0; }
 .bankToolbar { display: grid; grid-template-columns: 160px minmax(230px, 1.25fr) repeat(4, minmax(150px, 1fr)); gap: 10px; }
 .transactionTable { min-width: 1280px; }
 .transactionSummaryControls { flex-wrap: wrap; margin-bottom: 8px; }
+.trackerBillActions { flex-wrap: wrap; gap: 4px; }
 .transactionSummaryControls select, .transactionSummaryControls input { width: auto; min-width: 150px; }
 .transactionSummaryControls input[type="search"] { flex: 1 1 200px; }
 .transactionSummaryTable { min-width: 730px; }

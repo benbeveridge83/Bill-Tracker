@@ -8,7 +8,7 @@ const React = require('react');
 const { create, act } = require('react-test-renderer');
 let source;
 
-async function fixture(storage = new Map(), withSuggestions = false) {
+async function fixture(storage = new Map(), withSuggestions = false, locationSearch = null) {
   if (!source) {
     const result = await build({ entryPoints: [path.resolve('src/main.jsx')], bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external', loader: { '.css': 'empty' }, plugins: [{ name: 'external-boundaries', setup(b) {
       b.onLoad({ filter: /supabaseClient\.js$/ }, () => ({ contents: 'export const supabase = globalThis.qa.supabase;' }));
@@ -72,14 +72,19 @@ async function fixture(storage = new Map(), withSuggestions = false) {
     } },
   };
   const module = { exports: {} };
-  vm.runInNewContext(source, { module, exports: module.exports, require, console, setTimeout, clearTimeout, qa: { supabase }, localStorage: { getItem: (key) => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) } });
+  const browser = locationSearch === null ? null : {
+    location: { href: `https://example.test/Bill-Tracker/${locationSearch}`, search: locationSearch },
+    open(url) { state.openedUrl = url; },
+    addEventListener() {}, removeEventListener() {},
+  };
+  vm.runInNewContext(source, { module, exports: module.exports, require, console, setTimeout, clearTimeout, qa: { supabase }, localStorage: { getItem: (key) => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) }, ...(browser ? { window: browser, URL, URLSearchParams } : {}) });
   const types = module.exports;
   let tree;
   await act(async () => { tree = create(React.createElement(types.BillsApp, { session: { user: { id: 'qa-user', email: 'qa@example.test' } } })); });
   const text = (node) => node.children.map((child) => typeof child === 'string' ? child : text(child)).join('');
   const button = (label, scope = tree.root) => scope.findAllByType('button').find((node) => text(node).startsWith(label));
   const click = async (node) => { assert.ok(node, 'Button must exist'); assert.ok(!node.props.disabled, 'Button must be enabled'); await act(async () => { await node.props.onClick(); }); };
-  await click(button('Transactions'));
+  if (!locationSearch?.includes('findBill=')) await click(button('Transactions'));
   return { state, tables, tree, types, storage, text, button, click, close: async () => { await act(async () => tree.unmount()); } };
 }
 
@@ -218,5 +223,39 @@ test('transaction summary expands a charge and assigns a saved expense category'
     const updated = f.tree.root.findAllByType('tr').find((item) => item.props.className?.includes('transactionSummaryRow') && f.text(item).includes('Clio'));
     assert.match(f.text(updated), /Non-recurring/);
     assert.match(f.text(updated), /Shopping/);
+  } finally { await f.close(); }
+});
+
+test('tracker opens account transactions in a new window and displays actual bank amounts', async () => {
+  const f = await fixture(new Map(), false, '');
+  try {
+    await f.click(f.button('Tracker'));
+    const row = f.tree.root.findAllByType('tr').find((item) => item.props.className === 'rowMain' && f.text(item).includes('Clio'));
+    await f.click(f.button('Find Transactions', row));
+    assert.ok(f.text(f.tree.root).includes('Find transactions for Clio'));
+    const account = f.tree.root.findByProps({ id: 'find-bill-account' });
+    await act(async () => account.props.onChange({ target: { value: 'b' } }));
+    await f.click(f.button('Open transactions'));
+    const url = new URL(f.state.openedUrl);
+    assert.equal(url.searchParams.get('findBill'), 'clio');
+    assert.equal(url.searchParams.get('account'), 'b');
+    assert.match(url.searchParams.get('month'), /^\d{4}-\d{2}$/);
+    f.tables.plaid_transactions[0].matched_bill_id = 'clio';
+    f.tables.plaid_transactions[0].match_status = 'approved';
+    await act(async () => f.tree.update(React.createElement(f.types.BillsApp, { session: { user: { id: 'qa-user', email: 'qa@example.test' } } })));
+    const updated = f.tree.root.findAllByType('tr').find((item) => item.props.className === 'rowMain' && f.text(item).includes('Clio'));
+    assert.match(f.text(updated), /\$343BANK/);
+  } finally { await f.close(); }
+});
+
+test('find transactions window filters by chosen account and can match a payment', async () => {
+  const month = new Date().toISOString().slice(0, 7);
+  const f = await fixture(new Map(), false, `?findBill=clio&account=a&month=${month}`);
+  try {
+    assert.match(f.text(f.tree.root), /Find transactions for Clio/);
+    assert.ok(f.text(f.tree.root).includes('Clio'));
+    assert.ok(!f.text(f.tree.root).includes('Gas'));
+    await f.click(f.button('Match to bill'));
+    assert.equal(f.tables.plaid_transactions[0].matched_bill_id, 'clio');
   } finally { await f.close(); }
 });
