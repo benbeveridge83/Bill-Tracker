@@ -1546,6 +1546,23 @@ function BillsApp({ session }) {
     await loadAll();
   }
 
+  async function setNonRecurringBill(transaction, value) {
+    const { error } = await supabase
+      .from('plaid_transactions')
+      .update({ non_recurring_bill: value })
+      .eq('user_id', session.user.id)
+      .eq('transaction_id', transaction.transaction_id);
+
+    if (error) {
+      setMatchStatus(error.message);
+      return;
+    }
+    await loadAll();
+    setMatchStatus(value
+      ? 'Marked as nonrecurring. Filter these transactions to characterize them later.'
+      : 'Removed the nonrecurring label. This transaction can be matched to a bill again.');
+  }
+
   async function importLegacyData() {
     const legacy = readLegacyData();
 
@@ -2042,6 +2059,7 @@ function BillsApp({ session }) {
             onClassify={
               setClassifying
             }
+            onNonRecurringBill={setNonRecurringBill}
             onLink={(transaction) => {
               setMatchStatus('');
               setAppStatus('');

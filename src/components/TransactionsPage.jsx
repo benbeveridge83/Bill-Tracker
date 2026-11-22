@@ -35,6 +35,7 @@ export default function TransactionsPage({
   matchStatus,
   onMatchMonth,
   onClassify,
+  onNonRecurringBill,
   onLink,
   onMatchAction,
   mappings = [],
@@ -389,7 +390,7 @@ export default function TransactionsPage({
         <div className="bankToolbar">
           <div><label>Month</label><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></div>
           <CheckboxFilter label="Account" options={shownAccounts.map((account) => ({ value: account.account_id, label: accountLabel(account) }))} value={filters.account} onChange={(account) => setFilters({ ...filters, account })} />
-          <CheckboxFilter label="Bill status" options={[{ value: 'confirmed', label: 'Recognized bills' }, { value: 'suggested', label: 'Suggested bills' }, { value: 'not-bill', label: 'Not identified as bills' }]} value={filters.billState} onChange={(billState) => setFilters({ ...filters, billState })} />
+          <CheckboxFilter label="Bill status" options={[{ value: 'confirmed', label: 'Recognized bills' }, { value: 'suggested', label: 'Suggested bills' }, { value: 'not-bill', label: 'Needs bill review' }, { value: 'non-recurring', label: 'Nonrecurring' }]} value={filters.billState} onChange={(billState) => setFilters({ ...filters, billState })} />
           <CheckboxFilter label="Characterization" options={[{ value: 'characterized', label: 'Characterized' }, { value: 'uncharacterized', label: 'Uncharacterized' }]} value={filters.classification} onChange={(classification) => setFilters({ ...filters, classification })} />
           <CheckboxFilter label="Flow / type" options={[{ value: 'in', label: 'Money in' }, { value: 'out', label: 'Money out' }, { value: 'checks', label: 'Checks' }, { value: 'transfers', label: 'Transfers' }]} value={filters.flow} onChange={(flow) => setFilters({ ...filters, flow })} />
         </div>
@@ -426,12 +427,13 @@ export default function TransactionsPage({
                     <td><input className="transactionVisibilityCheckbox" type="checkbox" checked aria-label={`Show ${transactionName(tx)} on ${tx.date}`} title="Uncheck to hide this row. Use Show all to restore it." onChange={() => setHiddenTransactions((previous) => new Set([...previous, tx.transaction_id]))} /></td>
                     <td>{tx.date}{tx.pending && <div className="pendingText">pending</div>}</td>
                     <td>{accountLabel(accountsById[tx.account_id])}</td>
-                    <td><button className="transactionMerchantButton" onClick={() => onLink(tx)}>{billView && confirmedBill ? confirmedBill.name : transactionName(tx)}</button>{billView && confirmedBill && <div className="help">Bank: {transactionName(tx)}</div>}{needsCancel && <div className="warningText">SUBSCRIPTION — CANCEL</div>}</td>
+                    <td>{tx.non_recurring_bill ? <strong>{transactionName(tx)}</strong> : <button className="transactionMerchantButton" onClick={() => onLink(tx)}>{billView && confirmedBill ? confirmedBill.name : transactionName(tx)}</button>}{billView && confirmedBill && <div className="help">Bank: {transactionName(tx)}</div>}{tx.non_recurring_bill && <div className="help">Nonrecurring · {tx.spending_category ? 'Characterized' : 'Characterize later'}</div>}{needsCancel && <div className="warningText">SUBSCRIPTION — CANCEL</div>}</td>
                     <td className={`mono amountCell ${isMoneyIn(tx) ? 'moneyIn' : 'moneyOut'}`}>{isMoneyIn(tx) ? '+' : '-'}{fmtMoney(Math.abs(Number(tx.amount) || 0))}</td>
                     <td>{humanizeFinanceCategory(tx.personal_finance_detailed || tx.personal_finance_primary) || '—'}</td>
                     <td>{tx.spending_category || (tx.classification_status === 'uncharacterized' ? 'Uncharacterized' : '—')}{tx.spending_subcategory && <div className="help">{tx.spending_subcategory}</div>}</td>
                     <td><div className="actionStack">
-                      {!confirmed && !suggested && <button className="ghost mini" onClick={() => onLink(tx)}>Link to bill</button>}
+                      {!confirmed && !suggested && !tx.non_recurring_bill && <button className="ghost mini" onClick={() => onLink(tx)}>Link to bill</button>}
+                      {!tx.matched_bill_id && Number(tx.amount) > 0 && <button className="ghost mini" onClick={() => onNonRecurringBill(tx, !tx.non_recurring_bill)}>{tx.non_recurring_bill ? 'Undo nonrecurring' : 'Not recurring'}</button>}
                       <button className="ghost mini" onClick={() => onClassify(tx)}>Characterize</button>
                       {tx.spending_category && <button className="ghost mini" onClick={() => makeRule(tx)}>Make rule</button>}
                       {!needsCancel && Number(tx.amount) > 0 && <button className="ghost mini" onClick={() => flagSubscription(tx)}>Need to cancel</button>}
@@ -439,8 +441,9 @@ export default function TransactionsPage({
                     </div></td>
                   </tr>
                   <tr className="transactionMatchRow"><td colSpan={8}>
-                    <TransactionBillMatch transaction={tx} bills={bills} account={accountsById[tx.account_id]} mappings={mappings} rules={matchRules} feedback={matchFeedback}
+                    {tx.non_recurring_bill ? <div className="inlineBillMatch help">Set aside for later characterization. Use “Undo nonrecurring” to match it to a bill.</div> : <TransactionBillMatch transaction={tx} bills={bills} account={accountsById[tx.account_id]} mappings={mappings} rules={matchRules} feedback={matchFeedback}
                       preferences={billPickerPreferences} onPreferences={onBillPickerPreferences} aiMatch={aiSuggestions.matches[tx.transaction_id]} onMatchAction={onMatchAction} onLink={onLink} />
+                    }
                   </td></tr>
                   </React.Fragment>
                 );

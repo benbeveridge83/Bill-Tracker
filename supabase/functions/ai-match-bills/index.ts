@@ -343,7 +343,7 @@ Deno.serve(async (request) => {
         .from('plaid_transactions').select('*')
         .eq('user_id', user.id).eq('account_id', accountId)
         .gte('date', month.start).lte('date', month.end)
-        .eq('pending', false).gt('amount', 0).is('matched_bill_id', null)
+        .eq('pending', false).eq('non_recurring_bill', false).gt('amount', 0).is('matched_bill_id', null)
         .order('date', { ascending: true });
       if (error) throw error;
 

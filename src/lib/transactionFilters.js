@@ -13,7 +13,8 @@ export function matchesTransactionFilters(tx, filters) {
     && matchesAny(filters.billState, {
       confirmed: Boolean(tx.matched_bill_id) && ['approved', 'automatic'].includes(tx.match_status),
       suggested: Boolean(tx.suggested_bill_id) && tx.match_status === 'suggested',
-      'not-bill': !tx.matched_bill_id && !tx.suggested_bill_id,
+      'not-bill': !tx.matched_bill_id && !tx.suggested_bill_id && !tx.non_recurring_bill,
+      'non-recurring': Boolean(tx.non_recurring_bill),
     })
     && matchesAny(filters.classification, {
       characterized: tx.classification_status !== 'uncharacterized',

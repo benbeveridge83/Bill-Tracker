@@ -28,7 +28,7 @@ export function searchBills(bills, query = '', sort = 'amount-desc') {
 }
 
 export function suggestBill(transaction, bills, { category = 'all', rules = [], feedback = [] } = {}) {
-  if (transaction.pending || Number(transaction.amount) <= 0) return null;
+  if (transaction.non_recurring_bill || transaction.pending || Number(transaction.amount) <= 0) return null;
   const text = normalizeBillText([transaction.merchant_name, transaction.name, ...(transaction.counterparty_names || [])].filter(Boolean).join(' '));
   if (!text) return null;
   const candidates = candidateBills(transaction, bills, category, { feedback }).map((bill) => {

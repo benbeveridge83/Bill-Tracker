@@ -6,7 +6,7 @@ export default function useAiBillSuggestions({ transactions, contextKey, categor
   const [retry, setRetry] = useState(0);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
-  const eligible = transactions.filter((tx) => !tx.matched_bill_id && !tx.pending && Number(tx.amount) > 0);
+  const eligible = transactions.filter((tx) => !tx.non_recurring_bill && !tx.matched_bill_id && !tx.pending && Number(tx.amount) > 0);
   const work = eligible.map((tx) => ({ id: tx.transaction_id, key: `${contextKey}:${JSON.stringify([tx.transaction_id, tx.account_id, tx.name, tx.merchant_name, tx.amount, tx.date, tx.suggested_bill_id])}` }));
   const workKey = JSON.stringify(work);
 
