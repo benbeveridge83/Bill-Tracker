@@ -179,6 +179,9 @@ test('review page accepts suggested bill matches for the correct bill month in a
     assert.match(f.text(f.tree.root), /2 suggested bill matches/);
     assert.match(f.text(f.tree.root), /Clio/);
     assert.match(f.text(f.tree.root), /Gas/);
+    await f.click(f.button('Select none'));
+    assert.equal(f.button('Accept all selected (0)').props.disabled, true);
+    await f.click(f.button('Select all'));
     await f.click(f.button('Accept all selected (2)'));
     assert.equal(f.tables.plaid_transactions[0].matched_bill_id, 'clio');
     assert.equal(f.tables.plaid_transactions[1].matched_bill_id, 'gas');

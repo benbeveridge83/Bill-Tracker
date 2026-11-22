@@ -47,7 +47,7 @@ import {
 } from './components/Dialogs';
 import './styles.css';
 
-const APP_VERSION = '0.3.0';
+const APP_VERSION = '0.3.1';
 const PAGE_SIZE = 1000;
 const MAX_PAGES = 20;
 

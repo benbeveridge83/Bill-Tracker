@@ -29,7 +29,11 @@ export default function BillMatchReview({ matches, accounts, onDecide }) {
     <div className="pad">
       <div className="toolbar matchReviewHeader">
         <div><h3>{matches.length} suggested bill match{matches.length === 1 ? '' : 'es'}</h3><div className="help">Each transaction is paired with a bill for the same month. Uncheck any that need a closer look before accepting the rest.</div></div>
-        <button className="brand" disabled={busy || !chosen.length} onClick={() => decide('approve', chosen)}>{busy ? 'Saving…' : `Accept all selected (${chosen.length})`}</button>
+        <div className="toolbar">
+          <button className="ghost mini" disabled={busy || !matches.length} onClick={() => setSelectedIds(null)}>Select all</button>
+          <button className="ghost mini" disabled={busy || !selected.size} onClick={() => setSelectedIds(new Set())}>Select none</button>
+          <button className="brand" disabled={busy || !chosen.length} onClick={() => decide('approve', chosen)}>{busy ? 'Saving…' : `Accept all selected (${chosen.length})`}</button>
+        </div>
       </div>
       {status && <p className="statusMessage" role="status">{status}</p>}
       {matches.length ? <div className="tableScroll"><table className="matchReviewTable compactMatchReview">
