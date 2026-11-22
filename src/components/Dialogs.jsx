@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   fmtMoney,
   today,
@@ -14,6 +14,7 @@ import {
   transactionName,
 } from '../lib/bank';
 import { Modal } from './ui';
+import { supabase } from '../lib/supabaseClient';
 import BillPicker from './BillPicker';
 import { accountBillCategory, candidateBills, suggestBill } from '../lib/billMatching';
 
@@ -101,7 +102,7 @@ export function BillDialog({
 
       <div className="row">
         <div>
-          <label>Subcategory</label>
+        <label>Bill type</label>
           <input
             value={form.subcategory || ''}
             onChange={(event) =>
@@ -474,9 +475,18 @@ export function PartialDialog({
 
 export function ClassificationDialog({
   transaction,
+  transactions = [],
   onClose,
   onSave,
 }) {
+  const [savedCategories, setSavedCategories] = useState([]);
+  useEffect(() => {
+    let active = true;
+    supabase.from('spending_categories').select('name').order('name').then(({ data }) => {
+      if (active) setSavedCategories((data || []).map((item) => item.name));
+    });
+    return () => { active = false; };
+  }, []);
   const [form, setForm] = useState({
     category:
       transaction.spending_category || '',
@@ -486,6 +496,10 @@ export function ClassificationDialog({
       transaction.excluded_from_spending,
     ),
   });
+  const categoryOptions = [...new Set([...DEFAULT_SPENDING_CATEGORIES, ...savedCategories])];
+  const subcategoryOptions = [...new Set(transactions
+    .filter((item) => item.spending_category === form.category && item.spending_subcategory)
+    .map((item) => item.spending_subcategory))];
 
   return (
     <Modal
@@ -511,8 +525,10 @@ export function ClassificationDialog({
         </span>
       </div>
 
+      {transaction.non_recurring_bill && <p className="help"><strong>Non-recurring expenses</strong> → choose an expense category and optional subcategory below.</p>}
+
       <div>
-        <label>Spending category</label>
+        <label>{transaction.non_recurring_bill ? 'Expense category' : 'Spending category'}</label>
         <input
           list="spending-categories"
           value={form.category}
@@ -526,7 +542,7 @@ export function ClassificationDialog({
         />
 
         <datalist id="spending-categories">
-          {DEFAULT_SPENDING_CATEGORIES.map(
+          {categoryOptions.map(
             (category) => (
               <option
                 key={category}
@@ -538,8 +554,9 @@ export function ClassificationDialog({
       </div>
 
       <div>
-        <label>Subcategory / note</label>
+        <label>{transaction.non_recurring_bill ? 'Expense subcategory' : 'Subcategory / note'}</label>
         <input
+          list="spending-subcategories"
           value={form.subcategory}
           onChange={(event) =>
             setForm({
@@ -549,6 +566,7 @@ export function ClassificationDialog({
             })
           }
         />
+        <datalist id="spending-subcategories">{subcategoryOptions.map((item) => <option key={item} value={item} />)}</datalist>
       </div>
 
       <label className="checkLabel">

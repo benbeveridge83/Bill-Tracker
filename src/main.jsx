@@ -403,6 +403,7 @@ function BillsApp({ session }) {
       account: 'all',
       billState: 'all',
       classification: 'all',
+      reviewFlag: 'all',
       flow: 'all',
       search: '',
     });
@@ -1490,7 +1491,7 @@ function BillsApp({ session }) {
 
       setMatchStatus(
         action === 'approve'
-          ? 'Match approved. Bill Tracker learned this bank wording for next time.'
+          ? 'This transaction is confirmed as a bill payment. Other charges from the same vendor are separate transactions; choose “Needs review” to hide confirmed payments while you work.'
           : action === 'reject'
             ? 'Suggestion rejected and remembered.'
             : 'Bank match removed.',
@@ -1559,8 +1560,25 @@ function BillsApp({ session }) {
     }
     await loadAll();
     setMatchStatus(value
-      ? 'Marked as nonrecurring. Filter these transactions to characterize them later.'
-      : 'Removed the nonrecurring label. This transaction can be matched to a bill again.');
+      ? 'Marked as a non-recurring expense. Filter these transactions to characterize them later.'
+      : 'Removed the expense label. This transaction can be matched to a bill again.');
+  }
+
+  async function setPossibleFraud(transaction, value) {
+    const { error } = await supabase
+      .from('plaid_transactions')
+      .update({ possible_fraud: value })
+      .eq('user_id', session.user.id)
+      .eq('transaction_id', transaction.transaction_id);
+
+    if (error) {
+      setMatchStatus(error.message);
+      return;
+    }
+    await loadAll();
+    setMatchStatus(value
+      ? 'Marked for possible fraud review. This label does not notify your bank.'
+      : 'Possible fraud label removed.');
   }
 
   async function importLegacyData() {
@@ -2060,6 +2078,7 @@ function BillsApp({ session }) {
               setClassifying
             }
             onNonRecurringBill={setNonRecurringBill}
+            onFlagPossibleFraud={setPossibleFraud}
             onLink={(transaction) => {
               setMatchStatus('');
               setAppStatus('');
@@ -2161,6 +2180,7 @@ function BillsApp({ session }) {
       {classifying && (
         <ClassificationDialog
           transaction={classifying}
+          transactions={plaidTransactions}
           onClose={() =>
             setClassifying(null)
           }

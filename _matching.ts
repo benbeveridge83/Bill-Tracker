@@ -291,12 +291,45 @@ async function removePriorConfirmedLink(
 ) {
   if (!transaction?.matched_bill_id) return;
 
-  const { error: markError } = await supabase
+  const { data: mark, error: markReadError } = await supabase
     .from('bill_month_marks')
-    .delete()
+    .select('key, year, month')
     .eq('user_id', userId)
-    .eq('plaid_transaction_id', transaction.transaction_id);
-  if (markError) throw markError;
+    .eq('plaid_transaction_id', transaction.transaction_id)
+    .maybeSingle();
+  if (markReadError) throw markReadError;
+
+  if (mark) {
+    const start = `${mark.year}-${String(mark.month).padStart(2, '0')}-01`;
+    const end = mark.month === 12
+      ? `${mark.year + 1}-01-01`
+      : `${mark.year}-${String(mark.month + 1).padStart(2, '0')}-01`;
+    const { data: replacements, error: replacementError } = await supabase
+      .from('plaid_transactions')
+      .select('transaction_id, date, amount, match_confidence, match_reason')
+      .eq('user_id', userId)
+      .eq('matched_bill_id', transaction.matched_bill_id)
+      .gte('date', start)
+      .lt('date', end)
+      .neq('transaction_id', transaction.transaction_id)
+      .in('match_status', ['approved', 'automatic'])
+      .order('date', { ascending: false })
+      .limit(1);
+    if (replacementError) throw replacementError;
+
+    const replacement = replacements?.[0];
+    const { error: markError } = replacement
+      ? await supabase.from('bill_month_marks').update({
+          plaid_transaction_id: replacement.transaction_id,
+          date: replacement.date,
+          amount: Math.abs(Number(replacement.amount) || 0),
+          match_confidence: replacement.match_confidence,
+          match_reason: replacement.match_reason,
+        }).eq('user_id', userId).eq('key', mark.key)
+      : await supabase.from('bill_month_marks').delete()
+          .eq('user_id', userId).eq('key', mark.key);
+    if (markError) throw markError;
+  }
 
   const { error: logError } = await supabase
     .from('payment_logs')
@@ -304,55 +337,6 @@ async function removePriorConfirmedLink(
     .eq('user_id', userId)
     .eq('plaid_transaction_id', transaction.transaction_id);
   if (logError) throw logError;
-}
-
-async function clearCompetingMonthMatch(
-  supabase: any,
-  userId: string,
-  billId: string,
-  year: number,
-  month: number,
-  newTransactionId: string,
-) {
-  const key = trackerKey(billId, year, month);
-
-  const { data: existingMark, error: markReadError } = await supabase
-    .from('bill_month_marks')
-    .select('plaid_transaction_id')
-    .eq('user_id', userId)
-    .eq('key', key)
-    .maybeSingle();
-  if (markReadError) throw markReadError;
-
-  const oldTransactionId = existingMark?.plaid_transaction_id;
-  if (
-    !oldTransactionId ||
-    oldTransactionId === newTransactionId
-  ) {
-    return;
-  }
-
-  const { error: oldTransactionError } = await supabase
-    .from('plaid_transactions')
-    .update({
-      matched_bill_id: null,
-      suggested_bill_id: null,
-      match_status: 'unmatched',
-      match_confidence: null,
-      match_reason: null,
-      match_source: null,
-      matched_at: null,
-    })
-    .eq('user_id', userId)
-    .eq('transaction_id', oldTransactionId);
-  if (oldTransactionError) throw oldTransactionError;
-
-  const { error: oldLogError } = await supabase
-    .from('payment_logs')
-    .delete()
-    .eq('user_id', userId)
-    .eq('plaid_transaction_id', oldTransactionId);
-  if (oldLogError) throw oldLogError;
 }
 
 async function learnRule(
@@ -504,15 +488,6 @@ export async function recordConfirmedMatch(
   );
 
   const { year, month } = monthParts(transaction.date);
-  await clearCompetingMonthMatch(
-    supabase,
-    userId,
-    bill.id,
-    year,
-    month,
-    transaction.transaction_id,
-  );
-
   const amount = Math.abs(
     Number(transaction.amount) || 0
   );

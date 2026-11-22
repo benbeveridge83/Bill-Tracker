@@ -18,6 +18,7 @@ test('Clio is immediately suggested even when its amount differs', () => {
 
 test('suggestions honor category, account, disabled matching and rejected pairs', () => {
   assert.equal(suggestBill({ ...tx, non_recurring_bill: true }, bills), null);
+  assert.equal(suggestBill({ ...tx, possible_fraud: true }, bills), null);
   assert.equal(suggestBill(tx, bills, { category: 'Household' }), null);
   assert.equal(suggestBill({ ...tx, account_id: 'other' }, bills), null);
   assert.equal(suggestBill(tx, bills, { feedback: [{ transaction_id: 'tx', bill_id: 'clio', decision: 'rejected' }] }), null);

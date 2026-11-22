@@ -8,6 +8,17 @@ function matchesAny(selection, choices) {
   return Object.entries(choices).some(([key, matches]) => filterIncludes(selection, key) && matches);
 }
 
+function matchesFlow(tx, selection) {
+  if (selection == null || selection === 'all') return true;
+  // Treat these as separate transaction types: a transfer out is not an
+  // ordinary expense, even though its amount also represents money out.
+  const type = tx.is_transfer ? 'transfers'
+    : tx.is_check ? 'checks'
+      : Number(tx.amount) < 0 ? 'in'
+        : Number(tx.amount) > 0 ? 'out' : null;
+  return type !== null && filterIncludes(selection, type);
+}
+
 export function matchesTransactionFilters(tx, filters) {
   return filterIncludes(filters.account, tx.account_id)
     && matchesAny(filters.billState, {
@@ -20,10 +31,9 @@ export function matchesTransactionFilters(tx, filters) {
       characterized: tx.classification_status !== 'uncharacterized',
       uncharacterized: tx.classification_status === 'uncharacterized',
     })
-    && matchesAny(filters.flow, {
-      in: Number(tx.amount) < 0,
-      out: Number(tx.amount) > 0,
-      checks: Boolean(tx.is_check),
-      transfers: Boolean(tx.is_transfer),
-    });
+    && matchesAny(filters.reviewFlag, {
+      'possible-fraud': Boolean(tx.possible_fraud),
+      unflagged: !tx.possible_fraud,
+    })
+    && matchesFlow(tx, filters.flow);
 }

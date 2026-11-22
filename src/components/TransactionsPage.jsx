@@ -36,6 +36,7 @@ export default function TransactionsPage({
   onMatchMonth,
   onClassify,
   onNonRecurringBill,
+  onFlagPossibleFraud,
   onLink,
   onMatchAction,
   mappings = [],
@@ -53,13 +54,18 @@ export default function TransactionsPage({
   const [rules, setRules] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [showManager, setShowManager] = useState(false);
-  const [showSubscriptions, setShowSubscriptions] = useState(true);
+  const [showSubscriptions, setShowSubscriptions] = useState(false);
+  const [showFraud, setShowFraud] = useState(false);
   const [managerStatus, setManagerStatus] = useState('');
   const shownAccounts = accounts.filter((account) => !account.is_hidden);
 
   const accountsById = useMemo(
     () => Object.fromEntries(shownAccounts.map((account) => [account.account_id, account])),
     [shownAccounts],
+  );
+  const allAccountsById = useMemo(
+    () => Object.fromEntries(accounts.map((account) => [account.account_id, account])),
+    [accounts],
   );
   const billsById = useMemo(
     () => Object.fromEntries(bills.map((bill) => [bill.id, bill])),
@@ -286,6 +292,10 @@ export default function TransactionsPage({
 
   const openSubscriptions = subscriptions.filter((item) => item.status === 'open');
   const cancelledSubscriptions = subscriptions.filter((item) => item.status === 'cancelled');
+  const fraudTransactions = transactions
+    .filter((transaction) => transaction.possible_fraud)
+    .sort((left, right) => String(right.date).localeCompare(String(left.date)));
+  const monthAccountTotal = transactions.filter((tx) => inMonth(tx.date, month) && Boolean(accountsById[tx.account_id]) && (filters.account === 'all' || (Array.isArray(filters.account) ? filters.account.includes(tx.account_id) : filters.account === tx.account_id))).length;
 
   return (
     <section className="card">
@@ -321,25 +331,50 @@ export default function TransactionsPage({
             {billView ? 'Bill view on' : 'Highlight bill transactions'}
           </button>
           <button className="ghost" onClick={() => setShowManager((value) => !value)}>
-            {showManager ? 'Hide categories & rules' : 'Categories & rules'}
+            {showManager ? 'Hide expense categories & rules' : 'Expense categories & rules'}
+          </button>
+          <button className={fraudTransactions.length ? 'brand' : 'ghost'} onClick={() => setShowFraud((value) => !value)}>
+            Possible fraud ({fraudTransactions.length})
           </button>
           <button className={openSubscriptions.length ? 'brand' : 'ghost'} onClick={() => setShowSubscriptions((value) => !value)}>
-            Subscriptions to cancel{openSubscriptions.length ? ` (${openSubscriptions.length})` : ''}
+            Need to cancel ({openSubscriptions.length})
           </button>
         </div>
+
+        {showFraud && (
+          <div className="card ruleManagerCard" style={{ marginBottom: 16 }}>
+            <div className="pad">
+              <h3>Possible fraud ({fraudTransactions.length})</h3>
+              <p className="help">Flagged transactions from every month and account. This list does not notify your bank.</p>
+              {fraudTransactions.length ? (
+                <div className="tableScroll"><table className="transactionTable reviewListTable">
+                  <thead><tr><th>Date</th><th>Account</th><th>Transaction</th><th>Amount</th><th>Category</th><th>Action</th></tr></thead>
+                  <tbody>{fraudTransactions.map((tx) => <tr key={tx.transaction_id}>
+                    <td>{tx.date}</td><td>{accountLabel(allAccountsById[tx.account_id])}</td>
+                    <td><strong>{transactionName(tx)}</strong>{tx.name && tx.name !== tx.merchant_name && <div className="help">{tx.name}</div>}</td>
+                    <td className="mono">{fmtMoney(Math.abs(Number(tx.amount) || 0))}</td>
+                    <td>{tx.spending_category || 'Uncharacterized'}</td>
+                    <td><button className="ghost mini" onClick={() => onFlagPossibleFraud(tx, false)}>Clear fraud flag</button></td>
+                  </tr>)}</tbody>
+                </table></div>
+              ) : <p className="muted">No transactions are flagged as possible fraud.</p>}
+            </div>
+          </div>
+        )}
 
         {showSubscriptions && (
           <div className="card ruleManagerCard" style={{ marginBottom: 16 }}>
             <div className="pad">
-              <div><h3>Subscriptions to cancel</h3><div className="help">Use “Need to cancel” on any transaction. The merchant stays here until you mark it cancelled or remove it.</div></div>
+              <div><h3>Need to cancel ({openSubscriptions.length})</h3><div className="help">Flag a charge with “Need to cancel.” Each merchant stays on this list until you mark it cancelled or remove it.</div></div>
               {openSubscriptions.length ? (
                 <div className="tableScroll">
                   <table className="transactionTable">
-                    <thead><tr><th>Merchant</th><th>Latest charge</th><th>Amount</th><th>Category</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Merchant</th><th>Charge</th><th>Account</th><th>Amount</th><th>Category</th><th>Actions</th></tr></thead>
                     <tbody>{openSubscriptions.map((item) => (
                       <tr key={item.id}>
                         <td><strong>{item.merchant_name}</strong></td>
                         <td>{item.latest_transaction_date || '—'}</td>
+                        <td>{accountLabel(allAccountsById[transactions.find((tx) => tx.transaction_id === item.source_transaction_id)?.account_id])}</td>
                         <td className="mono">{item.latest_amount == null ? '—' : fmtMoney(item.latest_amount)}</td>
                         <td>{item.spending_category || '—'}</td>
                         <td><div className="actionStack"><button className="brand mini" onClick={() => setSubscriptionStatus(item, 'cancelled')}>Mark cancelled</button><button className="ghost mini" onClick={() => deleteSubscription(item)}>Remove</button></div></td>
@@ -370,7 +405,7 @@ export default function TransactionsPage({
           <div className="card ruleManagerCard" style={{ marginBottom: 16 }}>
             <div className="pad">
               <div className="toolbar">
-                <div><h3>Spending categories</h3><div className="help">Create, rename, or delete your own categories.</div></div>
+                <div><h3>Non-recurring expense categories</h3><div className="help">Create categories for purchases such as groceries, fuel, parking, and office supplies. You can add subcategories while characterizing a transaction.</div></div>
                 <button className="brand mini" onClick={addCategory}>+ New category</button>
               </div>
               <div className="toolbar" style={{ flexWrap: 'wrap', marginTop: 8 }}>
@@ -390,9 +425,10 @@ export default function TransactionsPage({
         <div className="bankToolbar">
           <div><label>Month</label><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></div>
           <CheckboxFilter label="Account" options={shownAccounts.map((account) => ({ value: account.account_id, label: accountLabel(account) }))} value={filters.account} onChange={(account) => setFilters({ ...filters, account })} />
-          <CheckboxFilter label="Bill status" options={[{ value: 'confirmed', label: 'Recognized bills' }, { value: 'suggested', label: 'Suggested bills' }, { value: 'not-bill', label: 'Needs bill review' }, { value: 'non-recurring', label: 'Nonrecurring' }]} value={filters.billState} onChange={(billState) => setFilters({ ...filters, billState })} />
+          <CheckboxFilter label="Transaction group" options={[{ value: 'confirmed', label: 'Bills' }, { value: 'suggested', label: 'Bill suggestions' }, { value: 'not-bill', label: 'Needs review' }, { value: 'non-recurring', label: 'Non-recurring expenses' }]} value={filters.billState} onChange={(billState) => setFilters({ ...filters, billState })} />
           <CheckboxFilter label="Characterization" options={[{ value: 'characterized', label: 'Characterized' }, { value: 'uncharacterized', label: 'Uncharacterized' }]} value={filters.classification} onChange={(classification) => setFilters({ ...filters, classification })} />
-          <CheckboxFilter label="Flow / type" options={[{ value: 'in', label: 'Money in' }, { value: 'out', label: 'Money out' }, { value: 'checks', label: 'Checks' }, { value: 'transfers', label: 'Transfers' }]} value={filters.flow} onChange={(flow) => setFilters({ ...filters, flow })} />
+          <CheckboxFilter label="Review flag" options={[{ value: 'possible-fraud', label: 'Possible fraud' }, { value: 'unflagged', label: 'Not flagged' }]} value={filters.reviewFlag} onChange={(reviewFlag) => setFilters({ ...filters, reviewFlag })} />
+          <CheckboxFilter label="Flow / type" options={[{ value: 'in', label: 'Other money in' }, { value: 'out', label: 'Other money out' }, { value: 'checks', label: 'Checks' }, { value: 'transfers', label: 'Transfers' }]} value={filters.flow} onChange={(flow) => setFilters({ ...filters, flow })} />
         </div>
 
         <div className="toolbar transactionControls">
@@ -410,38 +446,42 @@ export default function TransactionsPage({
         </div>
         {matchStatus && <p className="statusMessage">{matchStatus}</p>}
         {aiSuggestions.status && <div className="statusMessage toolbar" role="status"><span>{aiSuggestions.status}</span><button className="ghost mini" disabled={aiSuggestions.loading} onClick={aiSuggestions.retry}>{aiSuggestions.loading ? 'Checking...' : 'Retry AI suggestions'}</button></div>}
+        <p className="help" role="status"><strong>{monthTransactions.length} transaction{monthTransactions.length === 1 ? '' : 's'} showing</strong> out of {monthAccountTotal} in the selected month and account{monthAccountTotal === 1 ? '' : 's'}.{hiddenTransactions.size ? ` ${hiddenTransactions.size} manually hidden.` : ''}</p>
 
         {monthTransactions.length ? (
           <div className="tableScroll">
             <table className="transactionTable">
-              <thead><tr><th>Show</th><th>Date</th><th>Account</th><th>Description</th><th>Amount</th><th>Bank category</th><th>Spending category</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Show</th><th>Date</th><th>Account</th><th>Description</th><th>Amount</th><th>Bank category</th><th>Group</th><th>Category / type</th><th>Actions</th></tr></thead>
               <tbody>{monthTransactions.map((tx) => {
                 const confirmedBill = billsById[tx.matched_bill_id];
+                const suggestedBill = billsById[tx.suggested_bill_id];
                 const confirmed = isConfirmedBillTransaction(tx);
                 const suggested = isSuggestedBillTransaction(tx);
                 const merchantKey = normalizeMerchant(tx.merchant_name || tx.name || transactionName(tx));
                 const needsCancel = openSubscriptionKeys.has(merchantKey);
                 return (
                   <React.Fragment key={tx.transaction_id}>
-                  <tr className={billView && confirmed ? 'recognizedBillRow' : suggested ? 'suggestedBillRow' : ''}>
+                  <tr className={tx.possible_fraud ? 'possibleFraudRow' : billView && confirmed ? 'recognizedBillRow' : suggested ? 'suggestedBillRow' : ''}>
                     <td><input className="transactionVisibilityCheckbox" type="checkbox" checked aria-label={`Show ${transactionName(tx)} on ${tx.date}`} title="Uncheck to hide this row. Use Show all to restore it." onChange={() => setHiddenTransactions((previous) => new Set([...previous, tx.transaction_id]))} /></td>
                     <td>{tx.date}{tx.pending && <div className="pendingText">pending</div>}</td>
                     <td>{accountLabel(accountsById[tx.account_id])}</td>
-                    <td>{tx.non_recurring_bill ? <strong>{transactionName(tx)}</strong> : <button className="transactionMerchantButton" onClick={() => onLink(tx)}>{billView && confirmedBill ? confirmedBill.name : transactionName(tx)}</button>}{billView && confirmedBill && <div className="help">Bank: {transactionName(tx)}</div>}{tx.non_recurring_bill && <div className="help">Nonrecurring · {tx.spending_category ? 'Characterized' : 'Characterize later'}</div>}{needsCancel && <div className="warningText">SUBSCRIPTION — CANCEL</div>}</td>
+                    <td>{tx.non_recurring_bill || (tx.possible_fraud && !confirmed) ? <strong>{transactionName(tx)}</strong> : <button className="transactionMerchantButton" onClick={() => onLink(tx)}>{billView && confirmedBill ? confirmedBill.name : transactionName(tx)}</button>}{billView && confirmedBill && <div className="help">Bank: {transactionName(tx)}</div>}{tx.possible_fraud && <div className="fraudText">POSSIBLE FRAUD — review with your bank</div>}{needsCancel && <div className="warningText">NEED TO CANCEL</div>}</td>
                     <td className={`mono amountCell ${isMoneyIn(tx) ? 'moneyIn' : 'moneyOut'}`}>{isMoneyIn(tx) ? '+' : '-'}{fmtMoney(Math.abs(Number(tx.amount) || 0))}</td>
                     <td>{humanizeFinanceCategory(tx.personal_finance_detailed || tx.personal_finance_primary) || '—'}</td>
-                    <td>{tx.spending_category || (tx.classification_status === 'uncharacterized' ? 'Uncharacterized' : '—')}{tx.spending_subcategory && <div className="help">{tx.spending_subcategory}</div>}</td>
+                    <td>{confirmed ? 'Bill' : suggested ? 'Bill suggestion' : tx.non_recurring_bill ? 'Non-recurring expense' : 'Needs review'}</td>
+                    <td>{confirmedBill ? confirmedBill.subcategory || 'Bill type not set' : suggestedBill && suggested ? suggestedBill.subcategory || 'Bill type not set' : tx.spending_category || (tx.classification_status === 'uncharacterized' ? 'Uncharacterized' : '—')}{!confirmedBill && !suggested && tx.spending_subcategory && <div className="help">{tx.spending_subcategory}</div>}</td>
                     <td><div className="actionStack">
-                      {!confirmed && !suggested && !tx.non_recurring_bill && <button className="ghost mini" onClick={() => onLink(tx)}>Link to bill</button>}
-                      {!tx.matched_bill_id && Number(tx.amount) > 0 && <button className="ghost mini" onClick={() => onNonRecurringBill(tx, !tx.non_recurring_bill)}>{tx.non_recurring_bill ? 'Undo nonrecurring' : 'Not recurring'}</button>}
+                      {!confirmed && !suggested && !tx.non_recurring_bill && !tx.possible_fraud && <button className="ghost mini" onClick={() => onLink(tx)}>Link to bill</button>}
+                      {!tx.matched_bill_id && Number(tx.amount) > 0 && <button className="ghost mini" onClick={() => onNonRecurringBill(tx, !tx.non_recurring_bill)}>{tx.non_recurring_bill ? 'Remove expense label' : 'Non-recurring expense'}</button>}
+                      <button className="ghost mini" onClick={() => onFlagPossibleFraud(tx, !tx.possible_fraud)}>{tx.possible_fraud ? 'Clear fraud flag' : 'Possible fraud'}</button>
                       <button className="ghost mini" onClick={() => onClassify(tx)}>Characterize</button>
                       {tx.spending_category && <button className="ghost mini" onClick={() => makeRule(tx)}>Make rule</button>}
                       {!needsCancel && Number(tx.amount) > 0 && <button className="ghost mini" onClick={() => flagSubscription(tx)}>Need to cancel</button>}
                       {needsCancel && <span className="chip review">On cancel list</span>}
                     </div></td>
                   </tr>
-                  <tr className="transactionMatchRow"><td colSpan={8}>
-                    {tx.non_recurring_bill ? <div className="inlineBillMatch help">Set aside for later characterization. Use “Undo nonrecurring” to match it to a bill.</div> : <TransactionBillMatch transaction={tx} bills={bills} account={accountsById[tx.account_id]} mappings={mappings} rules={matchRules} feedback={matchFeedback}
+                  <tr className="transactionMatchRow"><td colSpan={9}>
+                    {tx.possible_fraud && !confirmed ? <div className="inlineBillMatch help">Set aside for fraud review. Clear the flag before linking to a bill; this does not contact the bank.</div> : tx.non_recurring_bill ? <div className="inlineBillMatch help">Non-recurring expense, ready to characterize. Remove the expense label to link it to a bill.</div> : <TransactionBillMatch transaction={tx} bills={bills} account={accountsById[tx.account_id]} mappings={mappings} rules={matchRules} feedback={matchFeedback}
                       preferences={billPickerPreferences} onPreferences={onBillPickerPreferences} aiMatch={aiSuggestions.matches[tx.transaction_id]} onMatchAction={onMatchAction} onLink={onLink} />
                     }
                   </td></tr>

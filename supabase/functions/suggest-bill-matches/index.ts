@@ -37,7 +37,7 @@ Deno.serve(async (request: Request) => {
 
     const supabase = serviceClient();
     const [transactionResult, billResult, accountResult, mappingResult, ruleResult, feedbackResult] = await Promise.all([
-      supabase.from('plaid_transactions').select('transaction_id,account_id,date,name,merchant_name,amount,pending,matched_bill_id,counterparty_names,non_recurring_bill').eq('user_id', user.id).in('transaction_id', ids),
+      supabase.from('plaid_transactions').select('transaction_id,account_id,date,name,merchant_name,amount,pending,matched_bill_id,counterparty_names,non_recurring_bill,possible_fraud').eq('user_id', user.id).in('transaction_id', ids),
       supabase.from('bills').select('id,name,category,subcategory,amount,bank_account_id,archived,match_mode,match_keywords,match_amount_tolerance').eq('user_id', user.id).eq('archived', false).limit(500),
       supabase.from('plaid_accounts').select('account_id,bill_match_category').eq('user_id', user.id),
       supabase.from('category_account_mappings').select('account_id,bill_category').eq('user_id', user.id),
@@ -48,7 +48,7 @@ Deno.serve(async (request: Request) => {
     const bills = billResult.data || [];
     const feedback = feedbackResult.data || [];
     const rules = ruleResult.data || [];
-    const contexts = (transactionResult.data || []).filter((tx) => !tx.non_recurring_bill && !tx.matched_bill_id && !tx.pending && Number(tx.amount) > 0).map((transaction) => {
+    const contexts = (transactionResult.data || []).filter((tx) => !tx.possible_fraud && !tx.non_recurring_bill && !tx.matched_bill_id && !tx.pending && Number(tx.amount) > 0).map((transaction) => {
       const account = accountResult.data?.find((item) => item.account_id === transaction.account_id);
       const effectiveCategory = category === 'account' ? accountBillCategory(account, mappingResult.data || []) : category;
       return { transaction, bills: candidateBills(transaction, bills, effectiveCategory, { feedback }), category: effectiveCategory };

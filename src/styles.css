@@ -120,7 +120,7 @@ table.tracker th { position: sticky; z-index: 2; top: 0; }
 .statusMessage { padding: 10px 12px; border: 1px solid #bae6fd; border-radius: 10px; color: #075985; background: #f0f9ff; }
 .errorMessage { padding: 10px 12px; border: 1px solid #fecaca; border-radius: 10px; color: #991b1b; background: #fef2f2; }
 .emptyState { padding: 16px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); background: var(--soft); }
-.bankToolbar { display: grid; grid-template-columns: 160px minmax(230px, 1.25fr) repeat(3, minmax(170px, 1fr)); gap: 10px; }
+.bankToolbar { display: grid; grid-template-columns: 160px minmax(230px, 1.25fr) repeat(4, minmax(150px, 1fr)); gap: 10px; }
 .transactionTable { min-width: 1280px; }
 .amountCell { white-space: nowrap; font-weight: 800; }
 .moneyIn { color: #047857; }
@@ -153,6 +153,8 @@ table.tracker th { position: sticky; z-index: 2; top: 0; }
 .matchReviewTable th, .matchReviewTable td { border-bottom: 1px solid var(--line, #e5e7eb); padding: 10px 8px; text-align: left; vertical-align: top; }
 .matchReviewTable th { white-space: nowrap; }
 .suggestedBillRow { background: #fff9df; }
+.possibleFraudRow { background: #fff0f0; }
+.fraudText { color: #a52424; font-weight: 700; }
 .recognizedBillRow { background: #e7f7ea !important; }
 .recognizedBillRow td { border-bottom-color: #bfe4c5; }
 .warningText { color: #a54800; }
