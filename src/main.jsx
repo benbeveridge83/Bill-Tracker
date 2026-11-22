@@ -48,7 +48,7 @@ import {
 } from './components/Dialogs';
 import './styles.css';
 
-const APP_VERSION = '0.3.2';
+const APP_VERSION = '0.3.3';
 const PAGE_SIZE = 1000;
 const MAX_PAGES = 20;
 
@@ -2177,6 +2177,7 @@ function BillsApp({ session }) {
             onMatchAction={
               matchTransaction
             }
+            onRefresh={loadAll}
           />
         )}
 
@@ -2195,6 +2196,7 @@ function BillsApp({ session }) {
             onBillPickerPreferences={updateBillPickerPreferences}
             aiSuggestions={aiSuggestions}
             onMatchAction={matchTransaction}
+            onRefresh={loadAll}
             onLink={(transaction) => { setMatchStatus(''); setLinking(transaction); }}
             onClassify={setClassifying}
             onApplyExpenseType={applyExpenseType}

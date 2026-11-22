@@ -88,7 +88,7 @@ async function fixture(storage = new Map(), withSuggestions = false, locationSea
   return { state, tables, tree, types, storage, text, button, click, close: async () => { await act(async () => tree.unmount()); } };
 }
 
-test('inline suggestions, live search, row hiding and remembered picker choices', async () => {
+test('inline suggestions, row selection, hiding and remembered picker choices', async () => {
   const f = await fixture();
   try {
     const { tree, types, click, button, text } = f;
@@ -110,12 +110,43 @@ test('inline suggestions, live search, row hiding and remembered picker choices'
     await act(async () => picker.findAllByType('select')[1].props.onChange({ target: { value: 'alpha' } }));
     assert.equal(inline.findByType(types.BillPicker).props.preferences.category, 'Household');
     const checks = () => tree.root.findAllByProps({ className: 'transactionVisibilityCheckbox' });
-    await act(async () => checks()[0].props.onChange()); assert.equal(checks().length, 2);
+    assert.ok(checks().every((check) => !check.props.checked));
+    await act(async () => checks()[0].props.onChange()); assert.equal(checks().length, 3);
+    assert.equal(checks().filter((check) => check.props.checked).length, 1);
+    await click(button('Select all shown')); assert.equal(checks().filter((check) => check.props.checked).length, 3);
+    await click(button('Deselect all')); assert.equal(checks().filter((check) => check.props.checked).length, 0);
+    await act(async () => checks()[0].props.onChange());
+    const bulkAction = tree.root.findByProps({ 'aria-label': 'Action for selected transactions' });
+    await act(async () => bulkAction.props.onChange({ target: { value: 'hide' } }));
+    await click(button('Apply to selected')); assert.equal(checks().length, 2);
     await click(button('Show all')); assert.equal(checks().length, 3);
     await f.close();
     const reopened = await fixture(f.storage);
     try { await reopened.click(reopened.button('Details')); const prefs = reopened.tree.root.findAllByType(reopened.types.BillPicker)[0].props.preferences; assert.equal(prefs.category, 'Household'); assert.equal(prefs.sort, 'alpha'); }
     finally { await reopened.close(); }
+  } finally { await f.close(); }
+});
+
+test('batch actions change only selected visible transactions', async () => {
+  const f = await fixture();
+  try {
+    const checks = () => f.tree.root.findAllByProps({ className: 'transactionVisibilityCheckbox' });
+    const choose = async (value) => act(async () => f.tree.root.findByProps({ 'aria-label': 'Action for selected transactions' }).props.onChange({ target: { value } }));
+    await f.click(f.button('Select all shown'));
+    await f.click(f.button('Deselect all'));
+    await act(async () => checks()[0].props.onChange());
+    await act(async () => checks()[1].props.onChange());
+    await choose('fraud');
+    await f.click(f.button('Apply to selected'));
+    assert.equal(f.tables.plaid_transactions.filter((tx) => tx.possible_fraud).length, 2);
+    assert.equal(f.tables.plaid_transactions[2].possible_fraud, undefined);
+    assert.equal(checks().filter((check) => check.props.checked).length, 0);
+    await act(async () => checks()[0].props.onChange());
+    await choose('classify');
+    await act(async () => f.tree.root.findByProps({ 'aria-label': 'Bookkeeping category for selected transactions' }).props.onChange({ target: { value: 'Groceries' } }));
+    await f.click(f.button('Apply to selected'));
+    assert.equal(f.tables.plaid_transactions[0].spending_category, 'Groceries');
+    assert.equal(f.tables.plaid_transactions[1].spending_category, undefined);
   } finally { await f.close(); }
 });
 

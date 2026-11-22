@@ -51,6 +51,7 @@ export default function TransactionsPage({
   onAccountBillCategory,
   onApplyExpenseType,
   onReviewTransactions,
+  onRefresh,
   unreviewedCount,
   reviewOpen,
   setReviewOpen,
@@ -58,6 +59,13 @@ export default function TransactionsPage({
   const [billView, setBillView] = useState(true);
   const [sortOrder, setSortOrder] = useState('date-desc');
   const [hiddenTransactions, setHiddenTransactions] = useState(new Set());
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState(new Set());
+  const [bulkAction, setBulkAction] = useState('');
+  const [bulkCategory, setBulkCategory] = useState('');
+  const [bulkSubcategory, setBulkSubcategory] = useState('');
+  const [bulkBillId, setBulkBillId] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState('');
   const [categories, setCategories] = useState([]);
   const [hiddenCategories, setHiddenCategories] = useState([]);
   const [rules, setRules] = useState([]);
@@ -137,6 +145,84 @@ export default function TransactionsPage({
       if (sortOrder === 'amount-desc' && amountDifference) return -amountDifference;
       return String(b.date).localeCompare(String(a.date));
     });
+  const selectedTransactions = monthTransactions.filter((tx) => selectedTransactionIds.has(tx.transaction_id));
+  const selectedCount = selectedTransactions.length;
+
+  function toggleTransactionSelection(id) {
+    setSelectedTransactionIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function applyBulkAction() {
+    if (!bulkAction || !selectedCount || bulkBusy) return;
+    if (bulkAction === 'hide') {
+      setHiddenTransactions((previous) => new Set([...previous, ...selectedTransactions.map((tx) => tx.transaction_id)]));
+      setSelectedTransactionIds(new Set());
+      setBulkStatus(`Hid ${selectedCount} transaction(s). Use Show all to restore them.`);
+      return;
+    }
+    const eligible = selectedTransactions.filter((tx) => {
+      if (bulkAction === 'expense' || bulkAction === 'remove-expense') return !tx.matched_bill_id && Number(tx.amount) > 0 && (bulkAction === 'expense' ? !tx.non_recurring_bill : Boolean(tx.non_recurring_bill));
+      if (bulkAction === 'cancel') return Number(tx.amount) > 0;
+      if (bulkAction === 'rule') return Boolean(tx.spending_category);
+      if (bulkAction === 'link') return !isConfirmedBillTransaction(tx) && !isSuggestedBillTransaction(tx) && !tx.non_recurring_bill && !tx.possible_fraud;
+      return true;
+    });
+    if (!eligible.length) { setBulkStatus('None of the selected transactions qualify for this action.'); return; }
+    if (bulkAction === 'classify' && !bulkCategory.trim()) { setBulkStatus('Enter a bookkeeping category first.'); return; }
+    if (bulkAction === 'link' && !bulkBillId) { setBulkStatus('Choose a bill first.'); return; }
+    if ((bulkAction === 'link' || bulkAction === 'rule') && !window.confirm(`Apply ${bulkAction === 'link' ? 'this bill' : 'a separate merchant rule'} to ${eligible.length} transaction(s)?`)) return;
+    setBulkBusy(true);
+    setBulkStatus('Applying selected action…');
+    let completed = 0;
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      const userId = userData.user?.id;
+      if (!userId) throw new Error('Sign in to change transactions.');
+      if (['expense', 'remove-expense', 'fraud', 'clear-fraud', 'classify'].includes(bulkAction)) {
+        const values = bulkAction === 'expense' ? { non_recurring_bill: true }
+          : bulkAction === 'remove-expense' ? { non_recurring_bill: false, expense_type_id: null }
+          : bulkAction === 'fraud' ? { possible_fraud: true }
+          : bulkAction === 'clear-fraud' ? { possible_fraud: false }
+          : { spending_category: bulkCategory.trim(), spending_subcategory: bulkSubcategory.trim() || null, classification_status: 'manual', classified_at: new Date().toISOString() };
+        for (let index = 0; index < eligible.length; index += 100) {
+          const { error } = await supabase.from('plaid_transactions').update(values).eq('user_id', userId).in('transaction_id', eligible.slice(index, index + 100).map((tx) => tx.transaction_id));
+          if (error) throw error;
+          completed += Math.min(100, eligible.length - index);
+        }
+      } else {
+        const seen = new Set();
+        for (const tx of eligible) {
+          const merchant = tx.merchant_name || tx.name || transactionName(tx);
+          const merchantKey = normalizeMerchant(merchant);
+          if (bulkAction === 'link') {
+            const { error } = await supabase.functions.invoke('bill-match-action', { body: { action: 'approve', transaction_id: tx.transaction_id, bill_id: bulkBillId } });
+            if (error) throw error;
+          } else if (merchantKey && !seen.has(merchantKey)) {
+            seen.add(merchantKey);
+            const table = bulkAction === 'cancel' ? 'subscription_cancellations' : 'transaction_classification_rules';
+            const row = bulkAction === 'cancel'
+              ? { user_id: userId, merchant_key: merchantKey, merchant_name: merchant, source_transaction_id: tx.transaction_id, latest_transaction_date: tx.date, latest_amount: Math.abs(Number(tx.amount) || 0), spending_category: tx.spending_category || null, status: 'open', cancelled_at: null, updated_at: new Date().toISOString() }
+              : { user_id: userId, merchant_pattern: merchant, normalized_pattern: merchantKey, spending_category: tx.spending_category, spending_subcategory: tx.spending_subcategory || null, excluded_from_spending: Boolean(tx.excluded_from_spending), active: true, updated_at: new Date().toISOString() };
+            const { error } = await supabase.from(table).upsert(row, { onConflict: bulkAction === 'cancel' ? 'user_id,merchant_key' : 'user_id,normalized_pattern' });
+            if (error) throw error;
+          }
+          completed++;
+        }
+        await loadRulesAndCategories();
+      }
+      setBulkStatus(`Updated ${completed} transaction(s).${selectedCount > eligible.length ? ` ${selectedCount - eligible.length} did not qualify.` : ''}`);
+      setSelectedTransactionIds(new Set());
+      await onRefresh();
+    } catch (error) {
+      setBulkStatus(`Updated ${completed} transaction(s) before an error: ${error.message}`);
+      if (completed) await onRefresh();
+    } finally { setBulkBusy(false); }
+  }
 
   function recognizedFor(accountId) {
     return transactions
@@ -524,6 +610,27 @@ export default function TransactionsPage({
           </div>
           <button className="brand" onClick={onMatchMonth} disabled={matching}>{matching ? 'Matching...' : 'Find bill payments'}</button>
         </div>
+        <div className="toolbar bulkTransactionControls">
+          <button className="ghost mini" disabled={!monthTransactions.length || bulkBusy} onClick={() => setSelectedTransactionIds(new Set(monthTransactions.map((tx) => tx.transaction_id)))}>Select all shown</button>
+          <button className="ghost mini" disabled={!selectedCount || bulkBusy} onClick={() => setSelectedTransactionIds(new Set())}>Deselect all</button>
+          <span className="help">{selectedCount} selected</span>
+          <select aria-label="Action for selected transactions" value={bulkAction} disabled={bulkBusy} onChange={(e) => { setBulkAction(e.target.value); setBulkStatus(''); }}>
+            <option value="">Action for selected…</option>
+            <option value="expense">Non-recurring expense</option>
+            <option value="remove-expense">Remove expense label</option>
+            <option value="fraud">Possible fraud</option>
+            <option value="clear-fraud">Clear fraud flag</option>
+            <option value="classify">Characterize</option>
+            <option value="cancel">Need to cancel</option>
+            <option value="rule">Make rule</option>
+            <option value="link">Link to bill</option>
+            <option value="hide">Hide selected</option>
+          </select>
+          {bulkAction === 'classify' && <><input aria-label="Bookkeeping category for selected transactions" placeholder="Bookkeeping category" list="bulk-bookkeeping-categories" value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)} /><datalist id="bulk-bookkeeping-categories">{visibleSpendingCategories(categories, hiddenCategories).map((name) => <option key={name} value={name} />)}</datalist><input aria-label="Subcategory for selected transactions" placeholder="Subcategory (optional)" value={bulkSubcategory} onChange={(e) => setBulkSubcategory(e.target.value)} /></>}
+          {bulkAction === 'link' && <select aria-label="Bill for selected transactions" value={bulkBillId} onChange={(e) => setBulkBillId(e.target.value)}><option value="">Choose bill…</option>{[...bills].sort((a, b) => a.name.localeCompare(b.name)).map((bill) => <option key={bill.id} value={bill.id}>{bill.name} ({bill.category})</option>)}</select>}
+          <button className="brand mini" disabled={!selectedCount || !bulkAction || bulkBusy} onClick={applyBulkAction}>{bulkBusy ? 'Applying…' : `Apply to selected (${selectedCount})`}</button>
+        </div>
+        {bulkStatus && <p className="statusMessage" role="status">{bulkStatus}</p>}
         {matchStatus && <p className="statusMessage">{matchStatus}</p>}
         {aiSuggestions.status && <div className="statusMessage toolbar" role="status"><span>{aiSuggestions.status}</span><button className="ghost mini" disabled={aiSuggestions.loading} onClick={aiSuggestions.retry}>{aiSuggestions.loading ? 'Checking...' : 'Retry AI suggestions'}</button></div>}
         <p className="help" role="status"><strong>{monthTransactions.length} transaction{monthTransactions.length === 1 ? '' : 's'} showing</strong> out of {monthAccountTotal} in the selected month and account{monthAccountTotal === 1 ? '' : 's'}.{hiddenTransactions.size ? ` ${hiddenTransactions.size} manually hidden.` : ''}</p>
@@ -531,7 +638,7 @@ export default function TransactionsPage({
         {monthTransactions.length ? (
           <div className="tableScroll">
             <table className="transactionTable">
-              <thead><tr><th>Show</th><th>Date</th><th>Account</th><th>Description</th><th>Amount</th><th>Bank category</th><th>Group</th><th>Category / type</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Select</th><th>Date</th><th>Account</th><th>Description</th><th>Amount</th><th>Bank category</th><th>Group</th><th>Category / type</th><th>Actions</th></tr></thead>
               <tbody>{monthTransactions.map((tx) => {
                 const confirmedBill = billsById[tx.matched_bill_id];
                 const suggestedBill = billsById[tx.suggested_bill_id];
@@ -555,7 +662,7 @@ export default function TransactionsPage({
                 return (
                   <React.Fragment key={tx.transaction_id}>
                   <tr className={tx.possible_fraud ? 'possibleFraudRow' : billView && confirmed ? 'recognizedBillRow' : suggested ? 'suggestedBillRow' : ''}>
-                    <td><input className="transactionVisibilityCheckbox" type="checkbox" checked aria-label={`Show ${transactionName(tx)} on ${tx.date}`} title="Uncheck to hide this row. Use Show all to restore it." onChange={() => setHiddenTransactions((previous) => new Set([...previous, tx.transaction_id]))} /></td>
+                    <td><input className="transactionVisibilityCheckbox" type="checkbox" checked={selectedTransactionIds.has(tx.transaction_id)} aria-label={`Select ${transactionName(tx)} on ${tx.date}`} title="Select for a batch action" onChange={() => toggleTransactionSelection(tx.transaction_id)} /></td>
                     <td>{tx.date}{tx.pending && <div className="pendingText">pending</div>}</td>
                     <td>{accountLabel(accountsById[tx.account_id])}</td>
                     <td>{tx.non_recurring_bill || (tx.possible_fraud && !confirmed) ? <strong>{transactionName(tx)}</strong> : <button className="transactionMerchantButton" onClick={() => onLink(tx)}>{billView && confirmedBill ? confirmedBill.name : transactionName(tx)}</button>}{billView && confirmedBill && <div className="help">Bank: {transactionName(tx)}</div>}{tx.possible_fraud && <div className="fraudText">POSSIBLE FRAUD — review with your bank</div>}{needsCancel && <div className="warningText">NEED TO CANCEL</div>}</td>

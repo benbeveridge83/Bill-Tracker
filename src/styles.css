@@ -47,6 +47,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .controls { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(160px, 220px) auto auto; }
 .transactionControls { margin: 12px 0; }
 .transactionControls input { min-width: 260px; flex: 1; }
+.bulkTransactionControls { margin: 8px 0; flex-wrap: wrap; }
+.bulkTransactionControls select, .bulkTransactionControls input { width: auto; min-width: 165px; max-width: 280px; }
 .filterLabel { margin-bottom: 6px; color: var(--muted); font-size: 0.9rem; }
 .checkboxFilter { min-width: 0; }
 .checkboxFilter summary { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; overflow-wrap: anywhere; }
