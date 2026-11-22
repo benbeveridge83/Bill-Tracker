@@ -26,7 +26,10 @@ import {
 } from './lib/bank';
 import Dashboard from './components/Dashboard';
 import Tracker from './components/Tracker';
+import BillMatchReview from './components/BillMatchReview';
+import { pendingBillMatches } from './lib/billReview';
 import TransactionsPage from './components/TransactionsPage';
+import TransactionSummaryPage from './components/TransactionSummaryPage';
 import SpendingPage from './components/SpendingPage';
 import PlaidPanel from './components/PlaidPanel';
 import { accountBillCategory, readPickerPreferences, sanitizePickerPreferences } from './lib/billMatching';
@@ -1607,6 +1610,25 @@ function BillsApp({ session }) {
     await loadAll();
   }
 
+  async function decideBillMatches(action, rows) {
+    let completed = 0;
+    try {
+      for (const { tx, bill } of rows) {
+        await invokeFunction('bill-match-action', { body: {
+          action,
+          transaction_id: tx.transaction_id,
+          bill_id: bill.id,
+        } });
+        completed += 1;
+      }
+    } catch (error) {
+      await loadAll();
+      throw new Error(`${completed} of ${rows.length} saved. ${error.message}`);
+    }
+    await loadAll();
+    return completed;
+  }
+
   async function importLegacyData() {
     const legacy = readLegacyData();
 
@@ -1903,6 +1925,7 @@ function BillsApp({ session }) {
     ['dashboard', 'Dashboard'],
     ['tracker', 'Tracker'],
     ['transactions', 'Transactions'],
+    ['transaction-summary', 'Transaction summary'],
     ['spending', 'Spending'],
     ['paylog', 'Pay Log'],
     ['summary', 'Summary'],
@@ -1910,6 +1933,7 @@ function BillsApp({ session }) {
   ];
   const activeAccountIds = new Set(accounts.filter((account) => !account.is_hidden && !account.connection_inactive).map((account) => account.account_id));
   const unreviewedCount = plaidTransactions.filter((tx) => activeAccountIds.has(tx.account_id) && !tx.reviewed_at).length;
+  const billMatchesToReview = pendingBillMatches(bills, plaidTransactions, getMark, today().getFullYear());
 
   return (
     <>
@@ -1926,8 +1950,8 @@ function BillsApp({ session }) {
         </div>
 
         <div className="navRow">
-          <button className={unreviewedCount ? 'brand mini reviewAlert' : 'ghost mini reviewAlert'} aria-label={`${unreviewedCount} new transactions to review`} onClick={() => { setView('transactions'); setReviewOpen(true); }}>
-            <span aria-hidden="true">🔔</span> Review {unreviewedCount ? `(${unreviewedCount})` : ''}
+          <button className={billMatchesToReview.length || view === 'review' ? 'brand mini reviewAlert' : 'ghost mini reviewAlert'} aria-label={`${billMatchesToReview.length} suggested bill matches to review`} onClick={() => setView('review')}>
+            <span aria-hidden="true">🔔</span> Review {billMatchesToReview.length ? `(${billMatchesToReview.length})` : ''}
           </button>
           {navItems.map(
             ([value, label]) => (
@@ -2082,6 +2106,10 @@ function BillsApp({ session }) {
           />
         )}
 
+        {view === 'review' && (
+          <BillMatchReview matches={billMatchesToReview} accounts={accounts} onDecide={decideBillMatches} />
+        )}
+
         {view === 'transactions' && (
           <TransactionsPage
             month={bankMonth}
@@ -2101,6 +2129,7 @@ function BillsApp({ session }) {
             onAccountBillCategory={saveAccountBillCategory}
             onApplyExpenseType={applyExpenseType}
             onReviewTransactions={reviewTransactions}
+            unreviewedCount={unreviewedCount}
             reviewOpen={reviewOpen}
             setReviewOpen={setReviewOpen}
             setFilters={
@@ -2122,6 +2151,29 @@ function BillsApp({ session }) {
             onMatchAction={
               matchTransaction
             }
+          />
+        )}
+
+        {view === 'transaction-summary' && (
+          <TransactionSummaryPage
+            month={bankMonth}
+            setMonth={setBankMonth}
+            transactions={plaidTransactions}
+            accounts={accounts}
+            bills={bills}
+            userId={session.user.id}
+            mappings={accountMappings}
+            matchRules={matchRules}
+            matchFeedback={matchFeedback}
+            billPickerPreferences={billPickerPreferences}
+            onBillPickerPreferences={updateBillPickerPreferences}
+            aiSuggestions={aiSuggestions}
+            onMatchAction={matchTransaction}
+            onLink={(transaction) => { setMatchStatus(''); setLinking(transaction); }}
+            onClassify={setClassifying}
+            onApplyExpenseType={applyExpenseType}
+            onNonRecurringBill={setNonRecurringBill}
+            onOpenTransactions={() => setView('transactions')}
           />
         )}
 

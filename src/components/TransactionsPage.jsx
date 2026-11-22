@@ -8,7 +8,9 @@ import {
   isMoneyIn,
   isSuggestedBillTransaction,
   transactionName,
+  DEFAULT_SPENDING_CATEGORIES,
 } from '../lib/bank';
+import { visibleSpendingCategories } from '../lib/spendingCategories';
 import { supabase } from '../lib/supabaseClient';
 import { SectionTitle } from './ui';
 import CheckboxFilter from './CheckboxFilter';
@@ -49,6 +51,7 @@ export default function TransactionsPage({
   onAccountBillCategory,
   onApplyExpenseType,
   onReviewTransactions,
+  unreviewedCount,
   reviewOpen,
   setReviewOpen,
 }) {
@@ -56,6 +59,7 @@ export default function TransactionsPage({
   const [sortOrder, setSortOrder] = useState('date-desc');
   const [hiddenTransactions, setHiddenTransactions] = useState(new Set());
   const [categories, setCategories] = useState([]);
+  const [hiddenCategories, setHiddenCategories] = useState([]);
   const [rules, setRules] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [showManager, setShowManager] = useState(false);
@@ -64,6 +68,7 @@ export default function TransactionsPage({
   const [managerStatus, setManagerStatus] = useState('');
   const [expenseTypes, setExpenseTypes] = useState([]);
   const [addingExpenseFor, setAddingExpenseFor] = useState(null);
+  const [openDetail, setOpenDetail] = useState(null);
   const [selectedReviewIds, setSelectedReviewIds] = useState(null);
   const [reviewBusy, setReviewBusy] = useState(false);
   const shownAccounts = accounts.filter((account) => !account.is_hidden && !account.connection_inactive);
@@ -86,16 +91,18 @@ export default function TransactionsPage({
   );
 
   async function loadRulesAndCategories() {
-    const [categoryResult, ruleResult, subscriptionResult, expenseResult] = await Promise.all([
+    const [categoryResult, ruleResult, subscriptionResult, expenseResult, hiddenResult] = await Promise.all([
       supabase.from('spending_categories').select('*').order('name'),
       supabase.from('transaction_classification_rules').select('*').eq('active', true).order('merchant_pattern'),
       supabase.from('subscription_cancellations').select('*').order('status').order('updated_at', { ascending: false }),
       supabase.from('non_recurring_expense_types').select('*').order('name'),
+      supabase.from('hidden_spending_categories').select('category_name'),
     ]);
     if (!categoryResult.error) setCategories(categoryResult.data || []);
     if (!ruleResult.error) setRules(ruleResult.data || []);
     if (!subscriptionResult.error) setSubscriptions(subscriptionResult.data || []);
     if (!expenseResult.error) setExpenseTypes(expenseResult.data || []);
+    if (!hiddenResult.error) setHiddenCategories(hiddenResult.data || []);
   }
 
   async function addExpenseType(transaction, form) {
@@ -155,6 +162,25 @@ export default function TransactionsPage({
     }
   }
 
+  async function togglePresetCategory(name) {
+    const hidden = hiddenCategories.some((item) => item.category_name === name);
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user) { setManagerStatus(userError?.message || 'Sign in to edit categories.'); return; }
+    const query = supabase.from('hidden_spending_categories');
+    const { error } = hidden
+      ? await query.delete().eq('user_id', userData.user.id).eq('category_name', name)
+      : await query.insert({ user_id: userData.user.id, category_name: name });
+    if (error) { setManagerStatus(error.message); return; }
+    setHiddenCategories((previous) => hidden ? previous.filter((item) => item.category_name !== name) : [...previous, { category_name: name }]);
+    setManagerStatus(`${hidden ? 'Restored' : 'Hidden'} “${name}” in category choices. Existing transactions keep their labels.`);
+  }
+
+  function openCategoryManager() {
+    setAddingExpenseFor(null);
+    setShowManager(true);
+    window.requestAnimationFrame(() => document.getElementById('category-manager')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
+
   async function editCategory(category) {
     const name = window.prompt('Rename category:', category.name);
     if (!name?.trim() || name.trim() === category.name) return;
@@ -167,17 +193,19 @@ export default function TransactionsPage({
       setManagerStatus(error.message);
       return;
     }
-    await Promise.all([
+    const results = await Promise.all([
       supabase.from('plaid_transactions').update({ spending_category: newName }).eq('spending_category', oldName),
       supabase.from('transaction_classification_rules').update({ spending_category: newName, updated_at: new Date().toISOString() }).eq('spending_category', oldName),
       supabase.from('subscription_cancellations').update({ spending_category: newName, updated_at: new Date().toISOString() }).eq('spending_category', oldName),
+      supabase.from('non_recurring_expense_types').update({ category: newName }).eq('category', oldName),
     ]);
-    setManagerStatus(`Renamed “${oldName}” to “${newName}”.`);
+    const failed = results.find((result) => result.error);
+    setManagerStatus(failed ? `Category renamed, but some existing records could not be updated: ${failed.error.message}` : `Renamed “${oldName}” to “${newName}”.`);
     await loadRulesAndCategories();
   }
 
   async function deleteCategory(category) {
-    if (!window.confirm(`Delete category “${category.name}”? Existing transactions will keep their current text, but rules using this category will be removed.`)) return;
+    if (!window.confirm(`Delete category “${category.name}”? Existing transactions and saved expenses will keep their current text, but rules using this category will be removed.`)) return;
     const { error } = await supabase.from('spending_categories').delete().eq('id', category.id);
     if (error) {
       setManagerStatus(error.message);
@@ -336,6 +364,7 @@ export default function TransactionsPage({
     <section className="card">
       <SectionTitle>Accounts & bank transactions</SectionTitle>
       <div className="pad">
+        <button className="ghost mini" onClick={() => setReviewOpen((value) => !value)}>New bank transactions {unreviewedCount ? `(${unreviewedCount})` : ''}</button>
         {reviewOpen && <div className="card ruleManagerCard reviewInbox"><div className="pad">
           <div className="toolbar"><h3>New transactions to review ({needsReview.length})</h3><button className="ghost mini" onClick={() => setReviewOpen(false)}>Close</button></div>
           <p className="help">Reviewing acknowledges the bank transaction. Categorize a bill or expense separately below.</p>
@@ -448,12 +477,17 @@ export default function TransactionsPage({
         )}
 
         {showManager && (
-          <div className="card ruleManagerCard" style={{ marginBottom: 16 }}>
+          <div className="card ruleManagerCard" id="category-manager" style={{ marginBottom: 16 }}>
             <div className="pad">
               <div className="toolbar">
-                <div><h3>Non-recurring expense categories</h3><div className="help">Create categories for purchases such as groceries, fuel, parking, and office supplies. You can add subcategories while characterizing a transaction.</div></div>
+                <div><h3>Bookkeeping categories</h3><div className="help">Add Groceries and Eating Out, then hide Food & Dining below. Hiding a preset leaves existing transactions unchanged.</div></div>
                 <button className="brand mini" onClick={addCategory}>+ New category</button>
               </div>
+              <h4>Preset categories</h4>
+              <div className="categoryChips">
+                {DEFAULT_SPENDING_CATEGORIES.map((name) => <span className="chip" key={name}>{name} <button className="ghost mini" onClick={() => togglePresetCategory(name)}>{hiddenCategories.some((item) => item.category_name === name) ? 'Restore' : 'Hide'}</button></span>)}
+              </div>
+              <h4>Your categories</h4>
               <div className="toolbar" style={{ flexWrap: 'wrap', marginTop: 8 }}>
                 {categories.length ? categories.map((category) => (
                   <span className="chip" key={category.id}>{category.name}<button className="ghost mini" onClick={() => editCategory(category)}>Edit</button><button className="ghost mini" onClick={() => deleteCategory(category)}>Delete</button></span>
@@ -505,6 +539,19 @@ export default function TransactionsPage({
                 const suggested = isSuggestedBillTransaction(tx);
                 const merchantKey = normalizeMerchant(tx.merchant_name || tx.name || transactionName(tx));
                 const needsCancel = openSubscriptionKeys.has(merchantKey);
+                const detailOpen = openDetail?.id === tx.transaction_id;
+                const detailMode = detailOpen ? openDetail.mode : null;
+                const toggleDetail = (mode) => setOpenDetail(detailOpen ? null : { id: tx.transaction_id, mode });
+                const handleAction = (event) => {
+                  const action = event.target.value;
+                  event.target.value = '';
+                  if (action === 'link') onLink(tx);
+                  else if (action === 'expense-label') onNonRecurringBill(tx, !tx.non_recurring_bill);
+                  else if (action === 'fraud') onFlagPossibleFraud(tx, !tx.possible_fraud);
+                  else if (action === 'classify') onClassify(tx);
+                  else if (action === 'rule') makeRule(tx);
+                  else if (action === 'cancel') flagSubscription(tx);
+                };
                 return (
                   <React.Fragment key={tx.transaction_id}>
                   <tr className={tx.possible_fraud ? 'possibleFraudRow' : billView && confirmed ? 'recognizedBillRow' : suggested ? 'suggestedBillRow' : ''}>
@@ -516,29 +563,36 @@ export default function TransactionsPage({
                     <td>{humanizeFinanceCategory(tx.personal_finance_detailed || tx.personal_finance_primary) || '—'}</td>
                     <td>{confirmed ? 'Bill' : suggested ? 'Bill suggestion' : tx.non_recurring_bill ? 'Non-recurring expense' : 'Needs review'}</td>
                     <td>{confirmedBill ? confirmedBill.subcategory || 'Bill type not set' : suggestedBill && suggested ? suggestedBill.subcategory || 'Bill type not set' : tx.spending_category || (tx.classification_status === 'uncharacterized' ? 'Uncharacterized' : '—')}{!confirmedBill && !suggested && tx.spending_subcategory && <div className="help">{tx.spending_subcategory}</div>}</td>
-                    <td><div className="actionStack">
-                      {!confirmed && !suggested && !tx.non_recurring_bill && !tx.possible_fraud && <button className="ghost mini" onClick={() => onLink(tx)}>Link to bill</button>}
-                      {!tx.matched_bill_id && Number(tx.amount) > 0 && <button className="ghost mini" onClick={() => onNonRecurringBill(tx, !tx.non_recurring_bill)}>{tx.non_recurring_bill ? 'Remove expense label' : 'Non-recurring expense'}</button>}
-                      <button className="ghost mini" onClick={() => onFlagPossibleFraud(tx, !tx.possible_fraud)}>{tx.possible_fraud ? 'Clear fraud flag' : 'Possible fraud'}</button>
-                      <button className="ghost mini" onClick={() => onClassify(tx)}>Characterize</button>
-                      {tx.spending_category && <button className="ghost mini" onClick={() => makeRule(tx)}>Make rule</button>}
-                      {!needsCancel && Number(tx.amount) > 0 && <button className="ghost mini" onClick={() => flagSubscription(tx)}>Need to cancel</button>}
-                      {needsCancel && <span className="chip review">On cancel list</span>}
+                    <td><div className="transactionQuickActions">
+                      <button className="ghost mini" aria-expanded={detailOpen} aria-controls={detailOpen ? `transaction-detail-${tx.transaction_id}` : undefined} onClick={() => toggleDetail(tx.non_recurring_bill ? 'expense' : 'bill')}>{detailOpen ? 'Close details' : 'Details'}</button>
+                      <select aria-label={`Actions for ${transactionName(tx)}`} defaultValue="" onChange={handleAction}>
+                        <option value="" disabled>Actions…</option>
+                        {!confirmed && !suggested && !tx.non_recurring_bill && !tx.possible_fraud && <option value="link">Link to bill</option>}
+                        {!tx.matched_bill_id && Number(tx.amount) > 0 && <option value="expense-label">{tx.non_recurring_bill ? 'Remove expense label' : 'Non-recurring expense'}</option>}
+                        <option value="fraud">{tx.possible_fraud ? 'Clear fraud flag' : 'Possible fraud'}</option>
+                        <option value="classify">Characterize</option>
+                        {tx.spending_category && <option value="rule">Make rule</option>}
+                        {!needsCancel && Number(tx.amount) > 0 && <option value="cancel">Need to cancel</option>}
+                      </select>
                     </div></td>
                   </tr>
-                  <tr className="transactionMatchRow"><td colSpan={9}>
-                    {tx.possible_fraud && !confirmed ? <div className="inlineBillMatch help">Set aside for fraud review. Clear the flag before linking to a bill; this does not contact the bank.</div> : !tx.non_recurring_bill && <TransactionBillMatch transaction={tx} bills={bills} account={accountsById[tx.account_id]} mappings={mappings} rules={matchRules} feedback={matchFeedback}
+                  {detailOpen && <tr className="transactionMatchRow" id={`transaction-detail-${tx.transaction_id}`}><td colSpan={9}>
+                    <div className="transactionDetailTabs">
+                      {!tx.non_recurring_bill && <button className={detailMode === 'bill' ? 'brand mini' : 'ghost mini'} onClick={() => setOpenDetail({ id: tx.transaction_id, mode: 'bill' })}>Bill</button>}
+                      {!confirmed && <button className={detailMode === 'expense' ? 'brand mini' : 'ghost mini'} onClick={() => setOpenDetail({ id: tx.transaction_id, mode: 'expense' })}>Expense</button>}
+                    </div>
+                    {detailMode === 'bill' && (tx.possible_fraud && !confirmed ? <div className="inlineBillMatch help">Set aside for fraud review. Clear the flag before linking to a bill; this does not contact the bank.</div> : !tx.non_recurring_bill && <TransactionBillMatch transaction={tx} bills={bills} account={accountsById[tx.account_id]} mappings={mappings} rules={matchRules} feedback={matchFeedback}
                       preferences={billPickerPreferences} onPreferences={onBillPickerPreferences} aiMatch={aiSuggestions.matches[tx.transaction_id]} onMatchAction={onMatchAction} onLink={onLink} />
-                    }
-                    {!confirmed && <ExpenseTypePicker transaction={tx} types={expenseTypes} onApply={onApplyExpenseType} onAdd={setAddingExpenseFor} />}
-                  </td></tr>
+                    )}
+                    {detailMode === 'expense' && !confirmed && <ExpenseTypePicker transaction={tx} types={expenseTypes} onApply={onApplyExpenseType} onAdd={setAddingExpenseFor} />}
+                  </td></tr>}
                   </React.Fragment>
                 );
               })}</tbody>
             </table>
           </div>
         ) : <p className="emptyState">{hiddenTransactions.size ? 'No visible transactions match these filters. Use Show all to restore hidden rows, or adjust your filters.' : 'No transactions match these filters. Sync Plaid or choose another month.'}</p>}
-        {addingExpenseFor && <ExpenseTypeDialog transaction={addingExpenseFor} types={expenseTypes} onSave={addExpenseType} onClose={() => setAddingExpenseFor(null)} />}
+        {addingExpenseFor && <ExpenseTypeDialog transaction={addingExpenseFor} types={expenseTypes} categories={visibleSpendingCategories(categories, hiddenCategories)} onManageCategories={openCategoryManager} onSave={addExpenseType} onClose={() => setAddingExpenseFor(null)} />}
       </div>
     </section>
   );

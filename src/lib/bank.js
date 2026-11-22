@@ -1,4 +1,4 @@
-import { toISO } from './dates';
+import { toISO } from './dates.js';
 
 export const DEFAULT_SPENDING_CATEGORIES = [
   'Bills & Utilities',

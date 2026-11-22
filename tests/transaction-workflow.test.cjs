@@ -8,7 +8,7 @@ const React = require('react');
 const { create, act } = require('react-test-renderer');
 let source;
 
-async function fixture(storage = new Map()) {
+async function fixture(storage = new Map(), withSuggestions = false) {
   if (!source) {
     const result = await build({ entryPoints: [path.resolve('src/main.jsx')], bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external', loader: { '.css': 'empty' }, plugins: [{ name: 'external-boundaries', setup(b) {
       b.onLoad({ filter: /supabaseClient\.js$/ }, () => ({ contents: 'export const supabase = globalThis.qa.supabase;' }));
@@ -26,6 +26,12 @@ async function fixture(storage = new Map()) {
     bill_match_feedback: [],
     non_recurring_expense_types: [],
   };
+  if (withSuggestions) {
+    tables.plaid_transactions[0].suggested_bill_id = 'clio';
+    tables.plaid_transactions[0].match_status = 'suggested';
+    tables.plaid_transactions[1].suggested_bill_id = 'gas';
+    tables.plaid_transactions[1].match_status = 'suggested';
+  }
   const supabase = {
     auth: { async getUser() { return { data: { user: { id: 'qa-user' } }, error: null }; } },
     from(table) {
@@ -81,6 +87,8 @@ test('inline suggestions, live search, row hiding and remembered picker choices'
   const f = await fixture();
   try {
     const { tree, types, click, button, text } = f;
+    assert.equal(tree.root.findAllByType(types.TransactionBillMatch).length, 0, 'Transaction details start collapsed');
+    await click(button('Details'));
     const inline = tree.root.findAllByType(types.TransactionBillMatch)[0];
     assert.match(text(inline), /Suggested bill: Clio/);
     assert.ok(!tree.root.findAllByType('th').some((th) => text(th) === 'Bill match'));
@@ -101,7 +109,7 @@ test('inline suggestions, live search, row hiding and remembered picker choices'
     await click(button('Show all')); assert.equal(checks().length, 3);
     await f.close();
     const reopened = await fixture(f.storage);
-    try { const prefs = reopened.tree.root.findAllByType(reopened.types.BillPicker)[0].props.preferences; assert.equal(prefs.category, 'Household'); assert.equal(prefs.sort, 'alpha'); }
+    try { await reopened.click(reopened.button('Details')); const prefs = reopened.tree.root.findAllByType(reopened.types.BillPicker)[0].props.preferences; assert.equal(prefs.category, 'Household'); assert.equal(prefs.sort, 'alpha'); }
     finally { await reopened.close(); }
   } finally { await f.close(); }
 });
@@ -112,6 +120,7 @@ test('ChatGPT result appears inline and saved account category controls candidat
     f.state.aiMatches = [{ transaction_id: 'clio-tx', bill_id: 'clio', confidence: 0.95, reason: 'Practice software', source: 'openai' }];
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 520)); });
     assert.ok(f.state.aiCalls.length);
+    await f.click(f.button('Details'));
     assert.match(f.text(f.tree.root.findAllByType(f.types.TransactionBillMatch)[0]), /AI suggestion: Clio/);
     await act(async () => f.tree.root.findByProps({ id: 'account-bill-category-a' }).props.onChange({ target: { value: 'Household' } }));
     assert.equal(f.tables.plaid_accounts[0].bill_match_category, 'Household');
@@ -122,7 +131,9 @@ test('ChatGPT result appears inline and saved account category controls candidat
 test('new bill retains full form and a failed link retries the saved bill without duplicates', async () => {
   const f = await fixture();
   try {
-    await f.click(f.button('Link to bill'));
+    const row = f.tree.root.findAllByType('tr').find((item) => f.text(item).includes('Clio') && item.findAllByProps({ className: 'transactionQuickActions' }).length);
+    const actions = row.findAllByType('select').find((node) => node.props['aria-label']?.startsWith('Actions for'));
+    await act(async () => actions.props.onChange({ target: { value: 'link' } }));
     await f.click(f.button('+ Add a new bill'));
     const field = (label, type) => f.tree.root.findByType(f.types.BillDialog).findAllByType('label').find((node) => f.text(node) === label).parent.findByType(type);
     assert.equal(field('Name', 'input').props.value, 'Clio');
@@ -143,10 +154,13 @@ test('new bill retains full form and a failed link retries the saved bill withou
   } finally { await f.close(); }
 });
 
-test('the review alert defaults to all new transactions and supports individual and batch approval', async () => {
+test('new bank transaction acknowledgments stay available under Transactions', async () => {
   const f = await fixture();
   try {
     await f.click(f.button('🔔 Review'));
+    assert.match(f.text(f.tree.root), /No yellow Tracker matches need review/);
+    await f.click(f.button('Transactions'));
+    await f.click(f.button('New bank transactions'));
     assert.match(f.text(f.tree.root), /New transactions to review \(3\)/);
     assert.equal(f.button('Approve selected (3)').props.disabled, false);
     const row = f.tree.root.findAllByType('tr').find((item) => f.text(item).includes('Clio') && f.text(item).includes('Approve'));
@@ -157,14 +171,49 @@ test('the review alert defaults to all new transactions and supports individual 
   } finally { await f.close(); }
 });
 
+test('review page accepts suggested bill matches for the correct bill month in a batch', async () => {
+  const f = await fixture(new Map(), true);
+  try {
+    assert.ok(f.button('🔔 Review (2)'));
+    await f.click(f.button('🔔 Review (2)'));
+    assert.match(f.text(f.tree.root), /2 suggested bill matches/);
+    assert.match(f.text(f.tree.root), /Clio/);
+    assert.match(f.text(f.tree.root), /Gas/);
+    await f.click(f.button('Accept all selected (2)'));
+    assert.equal(f.tables.plaid_transactions[0].matched_bill_id, 'clio');
+    assert.equal(f.tables.plaid_transactions[1].matched_bill_id, 'gas');
+    assert.match(f.text(f.tree.root), /No yellow Tracker matches need review/);
+  } finally { await f.close(); }
+});
+
 test('a saved non-recurring expense categorizes a transaction without creating a bill', async () => {
   const f = await fixture();
   try {
+    await f.click(f.button('Details'));
+    await f.click(f.button('Expense', f.tree.root.findByProps({ className: 'transactionDetailTabs' })));
     await f.click(f.button('+ Add a non-recurring expense'));
     await f.click(f.button('Save and categorize'));
     assert.equal(f.tables.non_recurring_expense_types.length, 1);
     assert.equal(f.tables.plaid_transactions[0].non_recurring_bill, true);
     assert.equal(f.tables.plaid_transactions[0].expense_type_id, 'expense-1');
     assert.equal(f.tables.bills.length, 3);
+  } finally { await f.close(); }
+});
+
+test('transaction summary expands a charge and assigns a saved expense category', async () => {
+  const f = await fixture();
+  try {
+    await f.click(f.button('Transaction summary'));
+    assert.match(f.text(f.tree.root), /3 transactions/);
+    const row = f.tree.root.findAllByType('tr').find((item) => item.props.className?.includes('transactionSummaryRow') && f.text(item).includes('Clio'));
+    await act(async () => row.props.onClick());
+    assert.ok(f.button('Bill / recurring'));
+    await f.click(f.button('Non-recurring'));
+    await f.click(f.button('+ Add a non-recurring expense'));
+    await f.click(f.button('Save and categorize'));
+    assert.equal(f.tables.plaid_transactions[0].expense_type_id, 'expense-1');
+    const updated = f.tree.root.findAllByType('tr').find((item) => item.props.className?.includes('transactionSummaryRow') && f.text(item).includes('Clio'));
+    assert.match(f.text(updated), /Non-recurring/);
+    assert.match(f.text(updated), /Shopping/);
   } finally { await f.close(); }
 });

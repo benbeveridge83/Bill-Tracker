@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react';
-import { DEFAULT_SPENDING_CATEGORIES, transactionName } from '../lib/bank';
+import { transactionName } from '../lib/bank';
 import { Modal } from './ui';
 
 export default function ExpenseTypePicker({ transaction, types, onApply, onAdd }) {
@@ -38,13 +38,13 @@ export default function ExpenseTypePicker({ transaction, types, onApply, onAdd }
   </div>;
 }
 
-export function ExpenseTypeDialog({ transaction, types, onSave, onClose }) {
+export function ExpenseTypeDialog({ transaction, types, categories, onManageCategories, onSave, onClose }) {
   const [name, setName] = useState(transactionName(transaction));
   const [category, setCategory] = useState(transaction.spending_category || 'Shopping');
   const [subcategory, setSubcategory] = useState(transaction.spending_subcategory || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const categoryOptions = [...new Set([...DEFAULT_SPENDING_CATEGORIES, ...types.map((item) => item.category)])];
+  const categoryOptions = [...new Set([...categories, ...types.map((item) => item.category)])];
 
   async function save() {
     if (!name.trim() || !category.trim() || busy) return;
@@ -57,7 +57,8 @@ export function ExpenseTypeDialog({ transaction, types, onSave, onClose }) {
   return <Modal title="Add a non-recurring expense" onClose={onClose}>
     <p className="help">Save this expense for future transactions. This charge will be labeled and characterized now.</p>
     <label>Expense name</label><input value={name} onChange={(event) => setName(event.target.value)} />
-    <label>Bookkeeping category</label><input list="expense-type-categories" value={category} onChange={(event) => setCategory(event.target.value)} />
+    <div className="toolbar"><label>Bookkeeping category</label><button className="ghost mini" onClick={onManageCategories}>Edit category list</button></div>
+    <input list="expense-type-categories" value={category} onChange={(event) => setCategory(event.target.value)} />
     <datalist id="expense-type-categories">{categoryOptions.map((option) => <option key={option} value={option} />)}</datalist>
     <label>Subcategory (optional)</label><input value={subcategory} onChange={(event) => setSubcategory(event.target.value)} />
     {error && <div className="errorMessage" role="alert">{error}</div>}

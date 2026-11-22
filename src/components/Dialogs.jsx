@@ -6,13 +6,13 @@ import {
 } from '../lib/dates';
 import { monthNameShort } from '../lib/billMath';
 import {
-  DEFAULT_SPENDING_CATEGORIES,
   confidenceLabel,
   humanizeFinanceCategory,
   isConfirmedBillTransaction,
   isSuggestedBillTransaction,
   transactionName,
 } from '../lib/bank';
+import { visibleSpendingCategories } from '../lib/spendingCategories';
 import { Modal } from './ui';
 import { supabase } from '../lib/supabaseClient';
 import BillPicker from './BillPicker';
@@ -479,11 +479,14 @@ export function ClassificationDialog({
   onClose,
   onSave,
 }) {
-  const [savedCategories, setSavedCategories] = useState([]);
+  const [categoryOptions, setCategoryOptions] = useState([]);
   useEffect(() => {
     let active = true;
-    supabase.from('spending_categories').select('name').order('name').then(({ data }) => {
-      if (active) setSavedCategories((data || []).map((item) => item.name));
+    Promise.all([
+      supabase.from('spending_categories').select('name').order('name'),
+      supabase.from('hidden_spending_categories').select('category_name'),
+    ]).then(([saved, hidden]) => {
+      if (active) setCategoryOptions(visibleSpendingCategories(saved.data || [], hidden.data || []));
     });
     return () => { active = false; };
   }, []);
@@ -496,7 +499,6 @@ export function ClassificationDialog({
       transaction.excluded_from_spending,
     ),
   });
-  const categoryOptions = [...new Set([...DEFAULT_SPENDING_CATEGORIES, ...savedCategories])];
   const subcategoryOptions = [...new Set(transactions
     .filter((item) => item.spending_category === form.category && item.spending_subcategory)
     .map((item) => item.spending_subcategory))];
