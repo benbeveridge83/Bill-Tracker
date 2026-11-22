@@ -192,3 +192,8 @@ table.tracker th { position: sticky; z-index: 2; top: 0; }
   .pageToolbar .wideControl { min-width: 100%; }
   .dialogBackdrop { padding: 8px; }
 }
+.expensePicker { margin-top: 8px; display: grid; gap: 8px; }
+.expenseChoices { display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow: auto; }
+.expenseChoices button { text-align: left; }
+.reviewInbox { margin-bottom: 16px; }
+.reviewAlert { white-space: nowrap; }

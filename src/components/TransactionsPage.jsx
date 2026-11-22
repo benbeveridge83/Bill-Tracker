@@ -15,6 +15,7 @@ import CheckboxFilter from './CheckboxFilter';
 import { matchesTransactionFilters } from '../lib/transactionFilters';
 import { accountBillCategory } from '../lib/billMatching';
 import TransactionBillMatch from './TransactionBillMatch';
+import ExpenseTypePicker, { ExpenseTypeDialog } from './ExpenseTypePicker';
 
 function normalizeMerchant(value) {
   return String(value || '')
@@ -46,6 +47,10 @@ export default function TransactionsPage({
   onBillPickerPreferences,
   aiSuggestions,
   onAccountBillCategory,
+  onApplyExpenseType,
+  onReviewTransactions,
+  reviewOpen,
+  setReviewOpen,
 }) {
   const [billView, setBillView] = useState(true);
   const [sortOrder, setSortOrder] = useState('date-desc');
@@ -57,7 +62,11 @@ export default function TransactionsPage({
   const [showSubscriptions, setShowSubscriptions] = useState(false);
   const [showFraud, setShowFraud] = useState(false);
   const [managerStatus, setManagerStatus] = useState('');
-  const shownAccounts = accounts.filter((account) => !account.is_hidden);
+  const [expenseTypes, setExpenseTypes] = useState([]);
+  const [addingExpenseFor, setAddingExpenseFor] = useState(null);
+  const [selectedReviewIds, setSelectedReviewIds] = useState(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const shownAccounts = accounts.filter((account) => !account.is_hidden && !account.connection_inactive);
 
   const accountsById = useMemo(
     () => Object.fromEntries(shownAccounts.map((account) => [account.account_id, account])),
@@ -77,14 +86,27 @@ export default function TransactionsPage({
   );
 
   async function loadRulesAndCategories() {
-    const [categoryResult, ruleResult, subscriptionResult] = await Promise.all([
+    const [categoryResult, ruleResult, subscriptionResult, expenseResult] = await Promise.all([
       supabase.from('spending_categories').select('*').order('name'),
       supabase.from('transaction_classification_rules').select('*').eq('active', true).order('merchant_pattern'),
       supabase.from('subscription_cancellations').select('*').order('status').order('updated_at', { ascending: false }),
+      supabase.from('non_recurring_expense_types').select('*').order('name'),
     ]);
     if (!categoryResult.error) setCategories(categoryResult.data || []);
     if (!ruleResult.error) setRules(ruleResult.data || []);
     if (!subscriptionResult.error) setSubscriptions(subscriptionResult.data || []);
+    if (!expenseResult.error) setExpenseTypes(expenseResult.data || []);
+  }
+
+  async function addExpenseType(transaction, form) {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) throw userError;
+    if (!userData.user) throw new Error('Sign in to save an expense.');
+    const { data, error } = await supabase.from('non_recurring_expense_types')
+      .upsert({ user_id: userData.user.id, ...form }, { onConflict: 'user_id,name' }).select('*').single();
+    if (error) throw error;
+    await onApplyExpenseType(transaction, data);
+    await loadRulesAndCategories();
   }
 
   useEffect(() => {
@@ -296,11 +318,35 @@ export default function TransactionsPage({
     .filter((transaction) => transaction.possible_fraud)
     .sort((left, right) => String(right.date).localeCompare(String(left.date)));
   const monthAccountTotal = transactions.filter((tx) => inMonth(tx.date, month) && Boolean(accountsById[tx.account_id]) && (filters.account === 'all' || (Array.isArray(filters.account) ? filters.account.includes(tx.account_id) : filters.account === tx.account_id))).length;
+  const needsReview = transactions.filter((tx) => accountsById[tx.account_id] && !tx.reviewed_at)
+    .sort((left, right) => String(right.date).localeCompare(String(left.date)));
+  const reviewSelection = selectedReviewIds ?? new Set(needsReview.map((tx) => tx.transaction_id));
+
+  async function approveReview(ids) {
+    if (!ids.length || reviewBusy) return;
+    setReviewBusy(true);
+    try {
+      await onReviewTransactions(ids);
+      setSelectedReviewIds((previous) => previous === null ? null : new Set([...previous].filter((id) => !ids.includes(id))));
+    } catch (error) { setManagerStatus(error.message); }
+    finally { setReviewBusy(false); }
+  }
 
   return (
     <section className="card">
       <SectionTitle>Accounts & bank transactions</SectionTitle>
       <div className="pad">
+        {reviewOpen && <div className="card ruleManagerCard reviewInbox"><div className="pad">
+          <div className="toolbar"><h3>New transactions to review ({needsReview.length})</h3><button className="ghost mini" onClick={() => setReviewOpen(false)}>Close</button></div>
+          <p className="help">Reviewing acknowledges the bank transaction. Categorize a bill or expense separately below.</p>
+          {needsReview.length ? <>
+            <div className="toolbar"><button className="ghost mini" onClick={() => setSelectedReviewIds(new Set(needsReview.map((tx) => tx.transaction_id)))}>Select all</button><button className="ghost mini" onClick={() => setSelectedReviewIds(new Set())}>Clear selection</button><button className="brand mini" disabled={!reviewSelection.size || reviewBusy} onClick={() => approveReview([...reviewSelection])}>Approve selected ({reviewSelection.size})</button></div>
+            <div className="tableScroll"><table className="transactionTable"><thead><tr><th>Select</th><th>Date</th><th>Account</th><th>Transaction</th><th>Amount</th><th>Action</th></tr></thead><tbody>{needsReview.map((tx) => <tr key={tx.transaction_id}>
+              <td><input type="checkbox" aria-label={`Select ${transactionName(tx)} on ${tx.date}`} checked={reviewSelection.has(tx.transaction_id)} onChange={() => { const next = new Set(reviewSelection); if (next.has(tx.transaction_id)) next.delete(tx.transaction_id); else next.add(tx.transaction_id); setSelectedReviewIds(next); }} /></td>
+              <td>{tx.date}</td><td>{accountLabel(accountsById[tx.account_id])}</td><td>{transactionName(tx)}{tx.pending && <div className="help">Pending</div>}</td><td className="mono">{fmtMoney(Math.abs(Number(tx.amount) || 0))}</td><td><button className="ghost mini" disabled={reviewBusy} onClick={() => approveReview([tx.transaction_id])}>Approve</button></td>
+            </tr>)}</tbody></table></div>
+          </> : <p className="muted">All imported transactions have been reviewed.</p>}
+        </div></div>}
         <div className="accountSummaryGrid">
           {shownAccounts.map((account) => {
             const recognized = recognizedFor(account.account_id);
@@ -481,9 +527,10 @@ export default function TransactionsPage({
                     </div></td>
                   </tr>
                   <tr className="transactionMatchRow"><td colSpan={9}>
-                    {tx.possible_fraud && !confirmed ? <div className="inlineBillMatch help">Set aside for fraud review. Clear the flag before linking to a bill; this does not contact the bank.</div> : tx.non_recurring_bill ? <div className="inlineBillMatch help">Non-recurring expense, ready to characterize. Remove the expense label to link it to a bill.</div> : <TransactionBillMatch transaction={tx} bills={bills} account={accountsById[tx.account_id]} mappings={mappings} rules={matchRules} feedback={matchFeedback}
+                    {tx.possible_fraud && !confirmed ? <div className="inlineBillMatch help">Set aside for fraud review. Clear the flag before linking to a bill; this does not contact the bank.</div> : !tx.non_recurring_bill && <TransactionBillMatch transaction={tx} bills={bills} account={accountsById[tx.account_id]} mappings={mappings} rules={matchRules} feedback={matchFeedback}
                       preferences={billPickerPreferences} onPreferences={onBillPickerPreferences} aiMatch={aiSuggestions.matches[tx.transaction_id]} onMatchAction={onMatchAction} onLink={onLink} />
                     }
+                    {!confirmed && <ExpenseTypePicker transaction={tx} types={expenseTypes} onApply={onApplyExpenseType} onAdd={setAddingExpenseFor} />}
                   </td></tr>
                   </React.Fragment>
                 );
@@ -491,6 +538,7 @@ export default function TransactionsPage({
             </table>
           </div>
         ) : <p className="emptyState">{hiddenTransactions.size ? 'No visible transactions match these filters. Use Show all to restore hidden rows, or adjust your filters.' : 'No transactions match these filters. Sync Plaid or choose another month.'}</p>}
+        {addingExpenseFor && <ExpenseTypeDialog transaction={addingExpenseFor} types={expenseTypes} onSave={addExpenseType} onClose={() => setAddingExpenseFor(null)} />}
       </div>
     </section>
   );

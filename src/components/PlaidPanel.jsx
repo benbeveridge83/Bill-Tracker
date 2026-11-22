@@ -51,10 +51,10 @@ export default function PlaidPanel({
   status,
 }) {
   const [refresh, setRefresh] = useState(0);
-  const [localAccounts, setLocalAccounts] = useState(accounts);
+  const [localAccounts, setLocalAccounts] = useState(accounts.filter((account) => !account.connection_inactive));
   const [localBills, setLocalBills] = useState(bills);
 
-  useEffect(() => setLocalAccounts(accounts), [accounts]);
+  useEffect(() => setLocalAccounts(accounts.filter((account) => !account.connection_inactive)), [accounts]);
   useEffect(() => setLocalBills(bills), [bills]);
 
   async function reloadSettings() {
@@ -62,7 +62,7 @@ export default function PlaidPanel({
       supabase.from('plaid_accounts').select('*').order('name'),
       supabase.from('bills').select('*').eq('archived', false).order('name'),
     ]);
-    if (!a.error) setLocalAccounts(a.data || []);
+    if (!a.error) setLocalAccounts((a.data || []).filter((account) => !account.connection_inactive));
     if (!b.error) setLocalBills(b.data || []);
     setRefresh((value) => value + 1);
   }

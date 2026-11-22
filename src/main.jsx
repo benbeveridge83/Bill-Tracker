@@ -397,6 +397,7 @@ function BillsApp({ session }) {
 
   const [bankMonth, setBankMonth] =
     useState(currentMonthValue());
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const [bankFilters, setBankFilters] =
     useState({
@@ -572,7 +573,7 @@ function BillsApp({ session }) {
     body: { transaction_ids: transactionIds, category },
   }), []);
   const aiSuggestions = useAiBillSuggestions({
-    transactions: plaidTransactions.filter((tx) => inMonth(tx.date, bankMonth) || tx.transaction_id === linking?.transaction_id),
+    transactions: plaidTransactions.filter((tx) => accounts.some((account) => account.account_id === tx.account_id && !account.is_hidden && !account.connection_inactive) && (inMonth(tx.date, bankMonth) || tx.transaction_id === linking?.transaction_id)),
     contextKey: JSON.stringify({
       category: billPickerPreferences.category,
       bills: bills.map((bill) => [bill.id, bill.name, bill.amount, bill.category, bill.archived, bill.bank_account_id, bill.match_mode, bill.match_keywords]),
@@ -1221,7 +1222,7 @@ function BillsApp({ session }) {
                 `${metadata.institution?.name || 'bank'} connection...`,
               );
 
-              await invokeFunction(
+              const connection = await invokeFunction(
                 'plaid-exchange-public-token',
                 {
                   body: {
@@ -1235,9 +1236,9 @@ function BillsApp({ session }) {
 
               await loadAll();
 
-              setPlaidStatus(
-                `${metadata.accounts?.length || 0} account(s) connected successfully.`,
-              );
+              setPlaidStatus(connection.already_connected
+                ? 'These bank accounts are already connected. The existing connection and your matches are unchanged.'
+                : `${metadata.accounts?.length || 0} account(s) connected successfully.`);
             } catch (error) {
               setPlaidStatus(
                 error.message,
@@ -1550,7 +1551,7 @@ function BillsApp({ session }) {
   async function setNonRecurringBill(transaction, value) {
     const { error } = await supabase
       .from('plaid_transactions')
-      .update({ non_recurring_bill: value })
+      .update({ non_recurring_bill: value, ...(value ? {} : { expense_type_id: null }) })
       .eq('user_id', session.user.id)
       .eq('transaction_id', transaction.transaction_id);
 
@@ -1579,6 +1580,31 @@ function BillsApp({ session }) {
     setMatchStatus(value
       ? 'Marked for possible fraud review. This label does not notify your bank.'
       : 'Possible fraud label removed.');
+  }
+
+  async function applyExpenseType(transaction, type) {
+    const { error } = await supabase.from('plaid_transactions').update({
+      non_recurring_bill: true,
+      expense_type_id: type.id,
+      spending_category: type.category,
+      spending_subcategory: type.subcategory || null,
+      classification_status: 'manual',
+      classified_at: new Date().toISOString(),
+    }).eq('user_id', session.user.id).eq('transaction_id', transaction.transaction_id);
+    if (error) throw error;
+    await loadAll();
+    setMatchStatus(`Categorized as ${type.name} · ${type.category}.`);
+  }
+
+  async function reviewTransactions(transactionIds) {
+    const now = new Date().toISOString();
+    for (let index = 0; index < transactionIds.length; index += 100) {
+      const { error } = await supabase.from('plaid_transactions')
+        .update({ reviewed_at: now }).eq('user_id', session.user.id)
+        .in('transaction_id', transactionIds.slice(index, index + 100));
+      if (error) throw error;
+    }
+    await loadAll();
   }
 
   async function importLegacyData() {
@@ -1882,6 +1908,8 @@ function BillsApp({ session }) {
     ['summary', 'Summary'],
     ['plaid', 'Plaid'],
   ];
+  const activeAccountIds = new Set(accounts.filter((account) => !account.is_hidden && !account.connection_inactive).map((account) => account.account_id));
+  const unreviewedCount = plaidTransactions.filter((tx) => activeAccountIds.has(tx.account_id) && !tx.reviewed_at).length;
 
   return (
     <>
@@ -1898,6 +1926,9 @@ function BillsApp({ session }) {
         </div>
 
         <div className="navRow">
+          <button className={unreviewedCount ? 'brand mini reviewAlert' : 'ghost mini reviewAlert'} aria-label={`${unreviewedCount} new transactions to review`} onClick={() => { setView('transactions'); setReviewOpen(true); }}>
+            <span aria-hidden="true">🔔</span> Review {unreviewedCount ? `(${unreviewedCount})` : ''}
+          </button>
           {navItems.map(
             ([value, label]) => (
               <button
@@ -2068,6 +2099,10 @@ function BillsApp({ session }) {
             onBillPickerPreferences={updateBillPickerPreferences}
             aiSuggestions={aiSuggestions}
             onAccountBillCategory={saveAccountBillCategory}
+            onApplyExpenseType={applyExpenseType}
+            onReviewTransactions={reviewTransactions}
+            reviewOpen={reviewOpen}
+            setReviewOpen={setReviewOpen}
             setFilters={
               setBankFilters
             }

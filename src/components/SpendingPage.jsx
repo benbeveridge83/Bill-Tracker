@@ -21,6 +21,8 @@ export default function SpendingPage({
   accountFilter,
   setAccountFilter,
 }) {
+  const visibleAccounts = accounts.filter((account) => !account.is_hidden && !account.connection_inactive);
+  const visibleAccountIds = new Set(visibleAccounts.map((account) => account.account_id));
   const billsById = Object.fromEntries(
     bills.map((bill) => [bill.id, bill]),
   );
@@ -29,6 +31,7 @@ export default function SpendingPage({
     (transaction) =>
       inMonth(transaction.date, month) &&
       !transaction.pending &&
+      visibleAccountIds.has(transaction.account_id) &&
       filterIncludes(accountFilter, transaction.account_id),
   );
 
@@ -184,7 +187,7 @@ export default function SpendingPage({
         </div>
 
         <div className="wideControl">
-          <CheckboxFilter label="Account" options={accounts.map((account) => ({ value: account.account_id, label: accountLabel(account) }))} value={accountFilter} onChange={setAccountFilter} />
+          <CheckboxFilter label="Account" options={visibleAccounts.map((account) => ({ value: account.account_id, label: accountLabel(account) }))} value={accountFilter} onChange={setAccountFilter} />
         </div>
       </div>
 

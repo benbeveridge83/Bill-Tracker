@@ -24,22 +24,31 @@ async function fixture(storage = new Map()) {
     category_account_mappings: [{ account_id: 'a', bill_category: 'Business' }, { account_id: 'b', bill_category: 'Household' }],
     plaid_transactions: [{ transaction_id: 'clio-tx', account_id: 'a', name: 'Clio', merchant_name: 'Clio', amount: 343.45, date: `${month}-06`, classification_status: 'uncharacterized' }, { transaction_id: 'gas-tx', account_id: 'b', name: 'Gas', amount: 36.5, date: `${month}-05`, classification_status: 'uncharacterized' }, { transaction_id: 'other-tx', account_id: 'c', name: 'Other', amount: 9, date: `${month}-04`, classification_status: 'manual' }],
     bill_match_feedback: [],
+    non_recurring_expense_types: [],
   };
   const supabase = {
+    auth: { async getUser() { return { data: { user: { id: 'qa-user' } }, error: null }; } },
     from(table) {
-      let inserted; let updated; const where = {};
+      let inserted; let updated; let upserted; const where = {};
       const q = { select: () => q, order: () => q, range: () => q, single: () => q,
         eq(column, value) { where[column] = value; return q; },
+        in(column, value) { where[column] = value; return q; },
         insert(value) { inserted = value; return q; }, update(value) { updated = value; return q; },
+        upsert(value) { upserted = value; return q; },
         then(resolve, reject) {
           let result;
-          if (inserted) {
+          if (upserted) {
+            assert.equal(table, 'non_recurring_expense_types');
+            const record = { ...upserted, id: `expense-${tables.non_recurring_expense_types.length + 1}` };
+            tables.non_recurring_expense_types.push(record);
+            result = { data: record, error: null };
+          } else if (inserted) {
             assert.equal(table, 'bills');
             if (state.failSave) result = { error: { message: 'Save unavailable' } };
             else { state.inserts++; const bill = { ...inserted, id: `new-${state.inserts}` }; tables.bills.push(bill); result = { data: { id: bill.id }, error: null }; }
           } else if (updated) {
-            assert.equal(table, 'plaid_accounts'); assert.equal(where.user_id, 'qa-user');
-            Object.assign(tables.plaid_accounts.find((a) => a.account_id === where.account_id), updated);
+            assert.ok(['plaid_accounts', 'plaid_transactions'].includes(table)); assert.equal(where.user_id, 'qa-user');
+            tables[table].filter((row) => Object.entries(where).filter(([key]) => key !== 'user_id').every(([key, value]) => Array.isArray(value) ? value.includes(row[key]) : row[key] === value)).forEach((row) => Object.assign(row, updated));
             result = { data: null, error: null };
           } else result = { data: tables[table] || [], error: null };
           return Promise.resolve(result).then(resolve, reject);
@@ -131,5 +140,31 @@ test('new bill retains full form and a failed link retries the saved bill withou
     assert.equal(f.state.inserts, 1);
     assert.equal(f.tables.plaid_transactions[0].matched_bill_id, 'new-1');
     assert.equal(f.tree.root.findAllByType(f.types.LinkBillDialog).length, 0);
+  } finally { await f.close(); }
+});
+
+test('the review alert defaults to all new transactions and supports individual and batch approval', async () => {
+  const f = await fixture();
+  try {
+    await f.click(f.button('🔔 Review'));
+    assert.match(f.text(f.tree.root), /New transactions to review \(3\)/);
+    assert.equal(f.button('Approve selected (3)').props.disabled, false);
+    const row = f.tree.root.findAllByType('tr').find((item) => f.text(item).includes('Clio') && f.text(item).includes('Approve'));
+    await f.click(f.button('Approve', row));
+    assert.ok(f.tables.plaid_transactions.find((tx) => tx.transaction_id === 'clio-tx').reviewed_at);
+    await f.click(f.button('Approve selected (2)'));
+    assert.equal(f.tables.plaid_transactions.filter((tx) => !tx.reviewed_at).length, 0);
+  } finally { await f.close(); }
+});
+
+test('a saved non-recurring expense categorizes a transaction without creating a bill', async () => {
+  const f = await fixture();
+  try {
+    await f.click(f.button('+ Add a non-recurring expense'));
+    await f.click(f.button('Save and categorize'));
+    assert.equal(f.tables.non_recurring_expense_types.length, 1);
+    assert.equal(f.tables.plaid_transactions[0].non_recurring_bill, true);
+    assert.equal(f.tables.plaid_transactions[0].expense_type_id, 'expense-1');
+    assert.equal(f.tables.bills.length, 3);
   } finally { await f.close(); }
 });

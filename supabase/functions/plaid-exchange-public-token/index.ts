@@ -12,11 +12,32 @@ Deno.serve(async (req) => {
     const accounts = await plaidPost('/accounts/get', { access_token: exchanged.access_token });
     const sb = serviceClient();
 
+    const institutionId = item.item?.institution_id || institution?.institution_id || null;
+    if (institutionId && accounts.accounts?.length) {
+      const { data: priorItems, error: priorError } = await sb.from('plaid_items')
+        .select('item_id').eq('user_id', user.id).eq('institution_id', institutionId)
+        .eq('is_active', true).neq('item_id', exchanged.item_id);
+      if (priorError) throw priorError;
+      if (priorItems?.length) {
+        const { data: oldAccounts, error: accountsError } = await sb.from('plaid_accounts')
+          .select('item_id,mask,type,subtype').eq('user_id', user.id)
+          .in('item_id', priorItems.map((prior: any) => prior.item_id));
+        if (accountsError) throw accountsError;
+        const allAlreadyConnected = accounts.accounts.every((account: any) =>
+          account.mask && oldAccounts?.some((old: any) => old.mask === account.mask
+            && old.type === account.type && old.subtype === account.subtype));
+        if (allAlreadyConnected) {
+          await plaidPost('/item/remove', { access_token: exchanged.access_token });
+          return json({ ok: true, already_connected: true, accounts: 0 });
+        }
+      }
+    }
+
     const { error: itemError } = await sb.from('plaid_items').upsert({
       user_id: user.id,
       item_id: exchanged.item_id,
       access_token: exchanged.access_token,
-      institution_id: item.item?.institution_id || institution?.institution_id || null,
+      institution_id: institutionId,
       institution_name: institution?.name || null,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id,item_id' });
